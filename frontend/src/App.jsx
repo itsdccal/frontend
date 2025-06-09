@@ -7,6 +7,7 @@ import Homepage from "./pages/homepage/Homepage";
 import MyReports from "./pages/user/MyReports";
 import Profile from "./pages/user/Profile";
 
+import AdminRoute from "./routes/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import StandardReportForm from "./pages/report-form/StandardFormPresenter";
