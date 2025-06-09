@@ -1,24 +1,31 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, FileText, ChevronDown, Flame, Shield, X, Menu } from "lucide-react";
+import { Search, FileText, ChevronDown, Flame, Shield, X, Menu, User, ClipboardList, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 function Navbar() {
-  const isLoggedIn = !!localStorage.getItem("token");
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isLoggedIn = !!token;
   const navigate = useNavigate();
   const [isReportDropdownOpen, setIsReportDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const userDropdownRef = useRef(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/");
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsReportDropdownOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setIsUserDropdownOpen(false);
       }
     }
 
@@ -28,11 +35,11 @@ function Navbar() {
     };
   }, []);
 
-  // Close menus when pressing escape key
   useEffect(() => {
     function handleEscape(event) {
       if (event.key === 'Escape') {
         setIsReportDropdownOpen(false);
+        setIsUserDropdownOpen(false);
         setIsMobileMenuOpen(false);
       }
     }
@@ -47,7 +54,6 @@ function Navbar() {
     <>
     <header className="bg-red-500 text-white fixed top-0 left-0 right-0 z-50 shadow-lg">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo */}
         <div className="flex items-center space-x-8">
           <Link to="/" className="flex items-center space-x-2 select-none">
             <div className="bg-white text-red-500 p-2 rounded">
@@ -71,21 +77,12 @@ function Navbar() {
             >
               STATISTIK
             </Link>
-            {isLoggedIn && (
-              <Link
-                to="/dashboard"
-                className="hover:text-red-200 transition-colors duration-200"
-              >
-                DASHBOARD
-              </Link>
-            )}
 
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Dropdown clicked, current state:', isReportDropdownOpen); 
                   setIsReportDropdownOpen(!isReportDropdownOpen);
                 }}
                 className="flex items-center space-x-1 hover:text-red-200 transition-colors duration-200 focus:outline-none focus:text-red-200"
@@ -120,10 +117,7 @@ function Navbar() {
                 <Link
                   to="/reports/quick"
                   className="flex items-start space-x-3 px-4 py-3 hover:bg-red-50 transition-colors duration-200 group"
-                  onClick={() => {
-                    console.log('Quick report clicked'); 
-                    setIsReportDropdownOpen(false);
-                  }}
+                  onClick={() => setIsReportDropdownOpen(false)}
                 >
                   <div className="bg-red-100 p-2 rounded group-hover:bg-red-200 transition-colors">
                     <Flame className="w-5 h-5 text-red-600" />
@@ -149,10 +143,7 @@ function Navbar() {
                 <Link
                   to="/reports/standard"
                   className="flex items-start space-x-3 px-4 py-3 hover:bg-blue-50 transition-colors duration-200 group"
-                  onClick={() => {
-                    console.log('Standard report clicked'); 
-                    setIsReportDropdownOpen(false);
-                  }}
+                  onClick={() => setIsReportDropdownOpen(false)}
                 >
                   <div className="bg-blue-100 p-2 rounded group-hover:bg-blue-200 transition-colors">
                     <Shield className="w-5 h-5 text-blue-600" />
@@ -190,12 +181,55 @@ function Navbar() {
 
           <div className="hidden md:flex items-center space-x-4">
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="bg-white text-red-500 px-4 py-2 rounded font-medium hover:bg-red-50 transition duration-200"
-              >
-                LOGOUT
-              </button>
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/my-reports"
+                  className="flex items-center space-x-1 hover:text-red-200 transition-colors duration-200"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  <span>Laporan Saya</span>
+                </Link>
+
+                <div className="relative" ref={userDropdownRef}>
+                  <button
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="flex items-center space-x-2 bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">{user.name || 'User'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isUserDropdownOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-[60]">
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      
+                      <Link
+                        to="/profile"
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Profile Saya</span>
+                      </Link>
+                      
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsUserDropdownOpen(false);
+                        }}
+                        className="w-full flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               <>
                 <Link
@@ -245,13 +279,14 @@ function Navbar() {
             >
               STATISTIK
             </Link>
+
             {isLoggedIn && (
               <Link
-                to="/dashboard"
+                to="/my-reports"
                 className="block hover:text-red-200 transition-colors duration-200"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                DASHBOARD
+                LAPORAN SAYA
               </Link>
             )}
 
@@ -289,15 +324,30 @@ function Navbar() {
 
             <div className="pt-4 border-t border-red-400 space-y-3">
               {isLoggedIn ? (
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full bg-white text-red-500 px-4 py-2 rounded font-medium hover:bg-red-50 transition duration-200"
-                >
-                  LOGOUT
-                </button>
+                <div className="space-y-3">
+                  <div className="bg-red-700 rounded-lg p-3">
+                    <div className="font-medium">{user.name}</div>
+                    <div className="text-sm text-red-200">{user.email}</div>
+                  </div>
+                  
+                  <Link
+                    to="/profile"
+                    className="block text-center hover:text-red-200 transition-colors duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    PROFILE SAYA
+                  </Link>
+                  
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full bg-white text-red-500 px-4 py-2 rounded font-medium hover:bg-red-50 transition duration-200"
+                  >
+                    LOGOUT
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <Link

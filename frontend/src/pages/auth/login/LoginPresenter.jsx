@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../../services/api";
+import { login } from "../../../services/api";
 import LoginView from "./Login";
 
 export default function LoginPresenter() {
@@ -26,6 +26,7 @@ export default function LoginPresenter() {
       console.error(error);
       alert(error.message || "Login gagal. Cek email & password.");
     }
+    
   };
 
   return (

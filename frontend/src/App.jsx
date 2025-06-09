@@ -1,10 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import PrivateRoute from "./routes/PrivateRoute";
 import Navbar from "./components/Navbar";
-import Login from "./pages/login/LoginPresenter";
-import Register from "./pages/register/RegisterPresenter";
-import Dashboard from "./pages/dashboard/Dashboard";
+import Login from "./pages/auth/login/LoginPresenter";
+import Register from "./pages/auth/register/RegisterPresenter";
 import Homepage from "./pages/homepage/Homepage";
+import MyReports from "./pages/user/MyReports";
+import Profile from "./pages/user/Profile";
+
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import StandardReportForm from "./pages/report-form/StandardFormPresenter";
 import QuickReportForm from "./pages/report-form/QuickFormPresenter";
@@ -29,9 +32,14 @@ function App() {
         <Route path="/reports/standard" element={<StandardReportForm />} />
         
         <Route element={<PrivateRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/reports/quick/protected" element={<QuickReportForm />} />
           <Route path="/reports/standard/protected" element={<StandardReportForm />} />
+          <Route path="/my-reports" element={<MyReports />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminDashboard />} />
         </Route>
       </Routes>
     </Router>

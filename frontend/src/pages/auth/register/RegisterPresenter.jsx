@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { register } from "../../services/api";
+import { register } from "../../../services/api";
 import RegisterView from "./Register";
 
 export default function RegisterPresenter() {
