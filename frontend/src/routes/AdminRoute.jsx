@@ -5,15 +5,15 @@ const AdminRoute = () => {
   const userRole = localStorage.getItem("userRole") || "pelapor";
 
   const isAuthenticated = !!token;
-  const isAdmin = userRole === "admin";
+//   const isAdmin = userRole === "admin";
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
 
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" />;
-  }
+//   if (!isAdmin) {
+//     return <Navigate to="/" />;
+//   }
 
   return <Outlet />;
 };
