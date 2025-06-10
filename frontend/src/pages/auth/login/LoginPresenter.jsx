@@ -17,6 +17,7 @@ export default function LoginPresenter() {
     e.preventDefault();
     setLoading(true);
     
+    
     try {
       const res = await login(form);
       console.log("Login response:", res);
@@ -38,6 +39,9 @@ export default function LoginPresenter() {
         if (userData.role === "admin") {
           console.log("Redirecting to admin dashboard");
           navigate("/admin");
+        } else if (userData.role === "petugas") {
+          console.log("Redirecting to staff dashboard");
+          navigate("/staff");
         } else {
           console.log("Redirecting to homepage");
           navigate("/");
