@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import PrivateRoute from "./routes/PrivateRoute";
 import Navbar from "./components/Navbar";
 import Login from "./pages/auth/login/LoginPresenter";
@@ -18,10 +18,13 @@ import Statistics from "./pages/statistics/Statistics";
 
 import "leaflet/dist/leaflet.css";
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
-    <Router>
-      <Navbar />
+    <>
+      {!isAdminRoute && <Navbar />}
       <Routes>
         <Route path="/" element={<Homepage />}/>
         <Route path="/login" element={<Login />} />
@@ -43,6 +46,14 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
         </Route>
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
