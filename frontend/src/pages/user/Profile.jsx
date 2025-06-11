@@ -14,7 +14,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { getUserDetail, updateProfile, changePassword } from "../../services/api";
 
 const Profile = () => {
   const [user, setUser] = useState({});
@@ -52,10 +51,25 @@ const Profile = () => {
     setMessage({ type: "", text: "" });
 
     try {
-      const user= localStorage.getItem("user");
+      const user = localStorage.getItem("user");
       const userData = JSON.parse(user);
       const userId = userData.userId;
-      const responseData = await getUserDetail(userId); 
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`https://laporpak-production.up.railway.app/api/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to fetch user data');
+      }
+      
       const userProfile = responseData.user;
 
       setUser(userProfile);
@@ -74,81 +88,45 @@ const Profile = () => {
       console.error("Error fetching user data:", error);
       setMessage({
         type: "error",
-        text: `Error: ${error.message || "Gagal memuat data user."}`,
+        text: `Error: ${error.message || "Gagal memuat data user."}`
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-    setMessage({ type: "", text: "" });
-    if (!isEditing) {
-      setEditForm({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        address: user.address || "",
-        rt: user.rt || "",
-        rw: user.rw || "",
-        kelurahan: user.kelurahan || "",
-        kecamatan: user.kecamatan || "",
-      });
-    }
-  };
-
-  const handleInputChange = (e, formType = "edit") => {
+  const handleInputChange = (e, formType) => {
     const { name, value } = e.target;
-
-    if (formType === "password") {
-      setPasswordForm((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    } else {
-      setEditForm((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+    if (formType === "edit") {
+      setEditForm((prev) => ({ ...prev, [name]: value }));
+    } else if (formType === "password") {
+      setPasswordForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const validatePhone = (phone) => {
-    const phoneRegex = /^(\+62|62|0)[0-9]{9,13}$/;
-    return phoneRegex.test(phone.replace(/\s|-/g, ""));
-  };
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editForm.name.trim()) {
-      setMessage({ type: "error", text: "Nama tidak boleh kosong" });
-      return;
-    }
-
-    if (!validateEmail(editForm.email)) {
-      setMessage({ type: "error", text: "Format email tidak valid" });
-      return;
-    }
-
-    if (!validatePhone(editForm.phone)) {
-      setMessage({ type: "error", text: "Format nomor telepon tidak valid" });
-      return;
-    }
-
+  const handleSave = async () => {
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
-      const response = await updateProfile(user._id, editForm);
-      const updatedUser = response.updatedUser;
+      const token = localStorage.getItem("token");
       
-      setUser(updatedUser);
+      const response = await fetch(`https://laporpak-production.up.railway.app/api/users/${user._id}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editForm)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update profile');
+      }
 
+      setUser((prev) => ({ ...prev, ...editForm }));
       setIsEditing(false);
       setMessage({ type: "success", text: "Profile berhasil diperbarui!" });
 
@@ -183,11 +161,26 @@ const Profile = () => {
     setMessage({ type: "", text: "" }); 
     
     try {
-      const response = await changePassword(user._id, {
-        oldPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-        confirmPassword: passwordForm.confirmPassword,
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`https://laporpak-production.up.railway.app/api/users/${user._id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword,
+        })
       });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to change password');
+      }
 
       setPasswordForm({
         currentPassword: "",
@@ -233,201 +226,42 @@ const Profile = () => {
             }`}
           >
             {message.type === "success" ? (
-              <CheckCircle className="w-5 h-5 mr-2" />
+              <CheckCircle className="w-5 h-5 mr-3" />
             ) : (
-              <AlertCircle className="w-5 h-5 mr-2" />
+              <AlertCircle className="w-5 h-5 mr-3" />
             )}
             {message.text}
           </div>
         )}
 
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-4 lg:p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <User className="w-5 h-5 mr-2 text-blue-500" />
                 Informasi Personal
               </h2>
-              <button
-                onClick={handleEditToggle}
-                className={`flex items-center px-3 py-2 rounded-lg font-medium transition-colors ${
-                  isEditing
-                    ? "bg-gray-500 text-white hover:bg-gray-600"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
-              >
-                {isEditing ? (
-                  <>
-                    <X className="w-4 h-4 mr-1" />
-                    Batal
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="w-4 h-4 mr-1" />
-                    Edit
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="p-4 lg:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nama Lengkap *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={isEditing ? editForm.name : user.name || ""}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={isEditing ? editForm.email : user.email || ""}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    No. Telepon *
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={isEditing ? editForm.phone : user.phone || ""}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alamat
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={isEditing ? editForm.address : user.address || ""}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      RT
-                    </label>
-                    <input
-                      type="text"
-                      name="rt"
-                      value={isEditing ? editForm.rt : user.rt || ""}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isEditing
-                          ? "border-gray-300 bg-white"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      RW
-                    </label>
-                    <input
-                      type="text"
-                      name="rw"
-                      value={isEditing ? editForm.rw : user.rw || ""}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        isEditing
-                          ? "border-gray-300 bg-white"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kelurahan
-                  </label>
-                  <input
-                    type="text"
-                    name="kelurahan"
-                    value={
-                      isEditing ? editForm.kelurahan : user.kelurahan || ""
-                    }
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kecamatan
-                  </label>
-                  <input
-                    type="text"
-                    name="kecamatan"
-                    value={
-                      isEditing ? editForm.kecamatan : user.kecamatan || ""
-                    }
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isEditing
-                        ? "border-gray-300 bg-white"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {isEditing && (
-                <div className="mt-6 flex justify-end">
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit
+                </button>
+              ) : (
+                <div className="flex space-x-2">
                   <button
-                    onClick={handleSaveProfile}
+                    onClick={() => setIsEditing(false)}
+                    className="flex items-center px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleSave}
                     disabled={loading}
-                    className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                    className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
                     {loading ? (
                       <>
@@ -437,147 +271,303 @@ const Profile = () => {
                     ) : (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Simpan Perubahan
+                        Simpan
                       </>
                     )}
                   </button>
                 </div>
               )}
             </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nama Lengkap
+                </label>
+                <div className="flex items-center">
+                  <User className="w-4 h-4 text-gray-400 mr-3" />
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="name"
+                      value={editForm.name}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="flex-1 text-gray-900">{user.name || "-"}</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <div className="flex items-center">
+                  <Mail className="w-4 h-4 text-gray-400 mr-3" />
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      name="email"
+                      value={editForm.email}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="flex-1 text-gray-900">{user.email || "-"}</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nomor Telepon
+                </label>
+                <div className="flex items-center">
+                  <Phone className="w-4 h-4 text-gray-400 mr-3" />
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={editForm.phone}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="flex-1 text-gray-900">{user.phone || "-"}</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alamat
+                </label>
+                <div className="flex items-start">
+                  <MapPin className="w-4 h-4 text-gray-400 mr-3 mt-1" />
+                  {isEditing ? (
+                    <textarea
+                      name="address"
+                      value={editForm.address}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      rows="3"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="flex-1 text-gray-900">{user.address || "-"}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    RT
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="rt"
+                      value={editForm.rt}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="text-gray-900">{user.rt || "-"}</span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    RW
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="rw"
+                      value={editForm.rw}
+                      onChange={(e) => handleInputChange(e, "edit")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <span className="text-gray-900">{user.rw || "-"}</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kelurahan
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="kelurahan"
+                    value={editForm.kelurahan}
+                    onChange={(e) => handleInputChange(e, "edit")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <span className="text-gray-900">{user.kelurahan || "-"}</span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kecamatan
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="kecamatan"
+                    value={editForm.kecamatan}
+                    onChange={(e) => handleInputChange(e, "edit")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <span className="text-gray-900">{user.kecamatan || "-"}</span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-4 lg:p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <Key className="w-5 h-5 mr-2 text-red-500" />
-                Keamanan
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Shield className="w-5 h-5 mr-2 text-red-500" />
+                Keamanan Akun
               </h2>
-              <button
-                onClick={() => setIsChangingPassword(!isChangingPassword)}
-                className={`flex items-center px-3 py-2 rounded-lg font-medium transition-colors ${
-                  isChangingPassword
-                    ? "bg-gray-500 text-white hover:bg-gray-600"
-                    : "bg-red-500 text-white hover:bg-red-600"
-                }`}
-              >
-                {isChangingPassword ? (
-                  <>
-                    <X className="w-4 h-4 mr-1" />
-                    Batal
-                  </>
-                ) : (
-                  <>
-                    <Key className="w-4 h-4 mr-1" />
-                    Ubah Password
-                  </>
-                )}
-              </button>
+              {!isChangingPassword && (
+                <button
+                  onClick={() => setIsChangingPassword(true)}
+                  className="flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Ubah Password
+                </button>
+              )}
             </div>
 
-            {isChangingPassword && (
-              <div className="p-4 lg:p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password Saat Ini *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? "text" : "password"}
-                        name="currentPassword"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => handleInputChange(e, "password")}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowCurrentPassword(!showCurrentPassword)
-                        }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showCurrentPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
+            {!isChangingPassword ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <Key className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="font-medium text-gray-900">Password</p>
+                      <p className="text-sm text-gray-500">Terakhir diubah 30 hari yang lalu</p>
                     </div>
                   </div>
+                  <span className="text-gray-900">••••••••</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => setIsChangingPassword(false)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password Baru *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        name="newPassword"
-                        value={passwordForm.newPassword}
-                        onChange={(e) => handleInputChange(e, "password")}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showNewPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Konfirmasi Password Baru *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        name="confirmPassword"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => handleInputChange(e, "password")}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password Saat Ini *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      name="currentPassword"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => handleInputChange(e, "password")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
+                    />
                     <button
-                      onClick={handleChangePassword}
-                      disabled={loading}
-                      className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {loading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Mengubah...
-                        </>
+                      {showCurrentPassword ? (
+                        <EyeOff className="w-4 h-4" />
                       ) : (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          Simpan Password
-                        </>
+                        <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password Baru *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => handleInputChange(e, "password")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Konfirmasi Password Baru *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => handleInputChange(e, "password")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={loading}
+                    className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Mengubah...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Simpan Password
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             )}

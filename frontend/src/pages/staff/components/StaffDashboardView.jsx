@@ -1,6 +1,5 @@
 import React from 'react';
 import { TrendingUp, Clock, CheckCircle, AlertCircle, Eye, Edit } from 'lucide-react';
-import { getStatusColor, getUrgencyColor } from '../../admin/utils/adminHelpers';
 
 const StaffDashboardView = ({ stats, recentReports, dailyActivity }) => {
   const staffStats = stats.filter((_, index) => index !== 2);

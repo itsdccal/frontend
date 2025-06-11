@@ -4,7 +4,6 @@ import StaffHeader from './components/StaffHeader';
 import StaffDashboardView from './components/StaffDashboardView';
 import StaffReportsView from './components/StaffReportsView';
 import StaffSettingsView from './components/StaffSettingsView';
-import { useAdminData } from '../admin/hooks/useAdminData';
 
 const StaffDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');

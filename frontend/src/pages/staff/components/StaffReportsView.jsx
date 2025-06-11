@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Search, Eye, Edit, Clock, MapPin, Phone, FileText, Plus } from 'lucide-react';
-import { getStatusColor, getUrgencyColor } from '../../admin/utils/adminHelpers';
 
 const StaffReportsView = ({ 
   filteredReports, 
