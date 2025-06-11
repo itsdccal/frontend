@@ -97,4 +97,22 @@ export const changePassword = async (id, data) => {
   }
 };
 
+export const updateReportStatus = async (id, statusData) => {
+  try {
+    const response = await api.put(`/reports/${id}/status`, statusData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteReport = async (id) => {
+  try {
+    const response = await api.delete(`/reports/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default api;

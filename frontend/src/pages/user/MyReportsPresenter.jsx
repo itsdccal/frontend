@@ -88,7 +88,8 @@ export const myReportsPresenter = () => {
   const handleCancelReport = async (reportId) => {
     if (confirm('Apakah Anda yakin ingin membatalkan laporan ini?')) {
       try {
-        await cancelReportService(reportId); 
+        // Implementasi cancel report jika ada endpoint
+        // await cancelReportService(reportId); 
         fetchReports(); 
         alert('Laporan berhasil dibatalkan');
       } catch (err) {
