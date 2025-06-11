@@ -12,6 +12,10 @@ export default function RegisterPresenter() {
     password: "",
     phone: "",
     address: "",
+    rt: "",
+    rw: "",
+    kelurahan: "",
+    kecamatan: "",
     role: "pelapor",
   });
 

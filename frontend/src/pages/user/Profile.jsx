@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { getUserDetail, updateProfile, changePassword } from "../../services/api";
 
 const Profile = () => {
   const [user, setUser] = useState({});
@@ -43,19 +44,42 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(userData);
-    setEditForm({
-      name: userData.name || "",
-      email: userData.email || "",
-      phone: userData.phone || "",
-      address: userData.address || "",
-      rt: userData.rt || "",
-      rw: userData.rw || "",
-      kelurahan: userData.kelurahan || "",
-      kecamatan: userData.kecamatan || "",
-    });
+    fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    setLoading(true);
+    setMessage({ type: "", text: "" });
+
+    try {
+      const user= localStorage.getItem("user");
+      const userData = JSON.parse(user);
+      const userId = userData.userId;
+      const responseData = await getUserDetail(userId); 
+      const userProfile = responseData.user;
+
+      setUser(userProfile);
+
+      setEditForm({
+        name: userProfile.name || "",
+        email: userProfile.email || "",
+        phone: userProfile.phone || "",
+        address: userProfile.address || "",
+        rt: userProfile.rt || "",
+        rw: userProfile.rw || "",
+        kelurahan: userProfile.kelurahan || "",
+        kecamatan: userProfile.kecamatan || "",
+      });
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setMessage({
+        type: "error",
+        text: `Error: ${error.message || "Gagal memuat data user."}`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -117,17 +141,17 @@ const Profile = () => {
     }
 
     setLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    setMessage({ type: "", text: "" });
 
-      const updatedUser = { ...user, ...editForm };
+    try {
+      const response = await updateProfile(user._id, editForm);
+      const updatedUser = response.updatedUser;
+      
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
 
       setIsEditing(false);
       setMessage({ type: "success", text: "Profile berhasil diperbarui!" });
 
-      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     } catch (error) {
       setMessage({
         type: "error",
@@ -135,6 +159,7 @@ const Profile = () => {
       });
     } finally {
       setLoading(false);
+      setTimeout(() => setMessage({ type: "", text: "" }), 5000);
     }
   };
 
@@ -155,8 +180,14 @@ const Profile = () => {
     }
 
     setLoading(true);
+    setMessage({ type: "", text: "" }); 
+    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await changePassword(user._id, {
+        oldPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
 
       setPasswordForm({
         currentPassword: "",
@@ -166,14 +197,15 @@ const Profile = () => {
       setIsChangingPassword(false);
       setMessage({ type: "success", text: "Password berhasil diubah!" });
 
-      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     } catch (error) {
+      const errorMessage = error.message || error.toString();
       setMessage({
         type: "error",
-        text: "Gagal mengubah password. Coba lagi.",
+        text: `Gagal mengubah password. ${errorMessage}.`,
       });
     } finally {
       setLoading(false);
+      setTimeout(() => setMessage({ type: "", text: "" }), 5000);
     }
   };
 

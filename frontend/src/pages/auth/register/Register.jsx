@@ -1,5 +1,3 @@
-// src/pages/register/Register.jsx
-
 import { Link } from "react-router-dom";
 
 export default function Register({ form, onChange, onSubmit }) {
@@ -58,6 +56,54 @@ export default function Register({ form, onChange, onSubmit }) {
           className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
           required
         />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <input
+              name="rt"
+              type="text"
+              placeholder="RT"
+              value={form.rt}
+              onChange={onChange}
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+          <div>
+            <input
+              name="rw"
+              type="text"
+              placeholder="RW"
+              value={form.rw}
+              onChange={onChange}
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <input
+              name="kelurahan"
+              type="text"
+              placeholder="Kelurahan"
+              value={form.kelurahan}
+              onChange={onChange}
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+              required
+            />
+          </div>
+          <div>
+            <input
+              name="kecamatan"
+              type="text"
+              placeholder="Kecamatan"
+              value={form.kecamatan}
+              onChange={onChange}
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+              required
+            />
+          </div>
+        </div>
 
         <button
           type="submit"

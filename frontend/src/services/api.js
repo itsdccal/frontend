@@ -42,7 +42,6 @@ export const getUsers = async (params) => {
 export const getUserDetail = async (id) => {
   try {
     const response = await api.get(`/users/${id}`);
-    
     return response.data; 
   } catch (error) {
     throw error.response?.data || error;
@@ -57,6 +56,42 @@ export const createReport = async (formData) => {
       }
     });
     return response.data; 
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAllReports = async (params = {}) => {
+  try {
+    const response = await api.get("/reports", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getReportDetail = async (id) => {
+  try {
+    const response = await api.get(`/reports/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateProfile = async (id, data) => {
+  try {
+    const response = await api.put(`/users/${id}/update-profile`, data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const changePassword = async (id, data) => {
+  try {
+    const response = await api.put(`/users/${id}/update-password`, data);
+    return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
