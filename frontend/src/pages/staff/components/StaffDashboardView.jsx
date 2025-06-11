@@ -134,39 +134,6 @@ const StaffDashboardView = ({ stats, recentReports, dailyActivity }) => {
           </div>
         </div>
       </div>
-
-      <div className="bg-white rounded-lg p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <button className="flex items-center justify-center p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200">
-            <div className="text-center">
-              <div className="text-red-600 font-semibold">Emergency Call</div>
-              <div className="text-red-500 text-sm">113</div>
-            </div>
-          </button>
-          
-          <button className="flex items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200">
-            <div className="text-center">
-              <div className="text-blue-600 font-semibold">Unit Tersedia</div>
-              <div className="text-blue-500 text-sm">8/12 Unit</div>
-            </div>
-          </button>
-          
-          <button className="flex items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200">
-            <div className="text-center">
-              <div className="text-green-600 font-semibold">Tim Aktif</div>
-              <div className="text-green-500 text-sm">24 Personel</div>
-            </div>
-          </button>
-          
-          <button className="flex items-center justify-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200">
-            <div className="text-center">
-              <div className="text-purple-600 font-semibold">Status Siaga</div>
-              <div className="text-purple-500 text-sm">Level 2</div>
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

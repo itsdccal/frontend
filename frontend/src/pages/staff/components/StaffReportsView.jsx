@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Download, Eye, Edit, Clock, MapPin, Phone, FileText } from 'lucide-react';
+import { Search, Eye, Edit, Clock, MapPin, Phone, FileText, Plus } from 'lucide-react';
 import { getStatusColor, getUrgencyColor } from '../../admin/utils/adminHelpers';
 
 const StaffReportsView = ({ 
@@ -12,6 +12,20 @@ const StaffReportsView = ({
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showAddReportModal, setShowAddReportModal] = useState(false);
+  const [newReport, setNewReport] = useState({
+    title: '',
+    description: '',
+    category: '',
+    location: '',
+    urgency: 'sedang',
+    reporter: {
+      name: '',
+      phone: '',
+      email: '',
+      address: ''
+    }
+  });
 
   const handleViewDetail = (report) => {
     setSelectedReport(report);
@@ -29,13 +43,26 @@ const StaffReportsView = ({
     setSelectedReport(null);
   };
 
-  const handleAssignTeam = (reportId) => {
-    const teams = ['Unit 1 - Makassar Utara', 'Unit 2 - Makassar Selatan', 'Unit 3 - Makassar Timur', 'Unit 4 - Makassar Barat', 'Unit 5 - Tim Rescue'];
-    const selectedTeam = prompt(`Tugaskan tim untuk laporan ${reportId}:\n\n${teams.map((team, i) => `${i+1}. ${team}`).join('\n')}\n\nPilih nomor tim:`);
-    
-    if (selectedTeam && teams[selectedTeam - 1]) {
-      alert(`Laporan ${reportId} berhasil ditugaskan ke ${teams[selectedTeam - 1]}`);
-    }
+  const handleAddReport = () => {
+    setShowAddReportModal(true);
+  };
+
+  const handleSubmitNewReport = () => {
+    alert(`Laporan baru "${newReport.title}" berhasil ditambahkan`);
+    setShowAddReportModal(false);
+    setNewReport({
+      title: '',
+      description: '',
+      category: '',
+      location: '',
+      urgency: 'sedang',
+      reporter: {
+        name: '',
+        phone: '',
+        email: '',
+        address: ''
+      }
+    });
   };
 
   return (
@@ -58,15 +85,18 @@ const StaffReportsView = ({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Semua Status</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="rejected">Rejected</option>
+            <option value="">Semua Status</option>
+            <option value="pending">Menunggu</option>
+            <option value="in_progress">Dalam Progress</option>
+            <option value="completed">Selesai</option>
+            <option value="rejected">Ditolak</option>
           </select>
-          <button className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <button
+            onClick={handleAddReport}
+            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambahkan Laporan
           </button>
         </div>
       </div>
@@ -76,93 +106,54 @@ const StaffReportsView = ({
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID & Judul
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pelapor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Lokasi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Urgensi
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Waktu
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Aksi
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredReports.map((report) => (
+              {filteredReports?.map((report) => (
                 <tr key={report.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    #{report.id}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{report.id}</div>
-                      <div className="text-sm text-gray-500">{report.title}</div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                        report.type === 'kebakaran' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                      }`}>
-                        {report.type}
-                      </span>
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{report.title}</div>
+                    <div className="text-sm text-gray-500">{report.location}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>
-                      <div className="font-medium">{report.reporter}</div>
-                      <div className="text-gray-500">📞 +62-8xx-xxxx-xxx</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-start">
-                      <MapPin className="w-4 h-4 mr-1 mt-0.5 text-gray-400" />
-                      <span>{report.location}</span>
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      {report.category}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(report.status)}`}>
-                      {report.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getUrgencyColor(report.urgency)}`}>
-                      {report.urgency}
+                      {report.status === 'pending' ? 'Menunggu' :
+                       report.status === 'in_progress' ? 'Dalam Progress' :
+                       report.status === 'completed' ? 'Selesai' : 'Ditolak'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {report.date}
-                    </div>
+                    {report.created_at}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button 
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="flex justify-center space-x-2">
+                      <button
                         onClick={() => handleViewDetail(report)}
-                        className="text-blue-600 hover:text-blue-900" 
+                        className="text-blue-600 hover:text-blue-900"
                         title="Lihat Detail"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEditStatus(report)}
-                        className="text-green-600 hover:text-green-900" 
-                        title="Edit Status"
+                        className="text-green-600 hover:text-green-900"
+                        title="Update Status"
                       >
                         <Edit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleAssignTeam(report.id)}
-                        className="text-purple-600 hover:text-purple-900" 
-                        title="Tugaskan Tim"
-                      >
-                        <FileText className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -171,151 +162,303 @@ const StaffReportsView = ({
             </tbody>
           </table>
         </div>
-        
-        {filteredReports.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Tidak ada laporan yang ditemukan</p>
-          </div>
-        )}
       </div>
 
       {showDetailModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-bold">Detail Laporan {selectedReport.id}</h3>
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="font-medium text-gray-700">Judul:</label>
-                  <p className="text-gray-900">{selectedReport.title}</p>
-                </div>
-                <div>
-                  <label className="font-medium text-gray-700">Jenis:</label>
-                  <p className="text-gray-900 capitalize">{selectedReport.type}</p>
-                </div>
-                <div>
-                  <label className="font-medium text-gray-700">Pelapor:</label>
-                  <p className="text-gray-900">{selectedReport.reporter}</p>
-                </div>
-                <div>
-                  <label className="font-medium text-gray-700">Status:</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedReport.status)}`}>
-                    {selectedReport.status}
-                  </span>
-                </div>
-                <div>
-                  <label className="font-medium text-gray-700">Urgensi:</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getUrgencyColor(selectedReport.urgency)}`}>
-                    {selectedReport.urgency}
-                  </span>
-                </div>
-                <div>
-                  <label className="font-medium text-gray-700">Waktu:</label>
-                  <p className="text-gray-900">{selectedReport.date}</p>
-                </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-semibold">Detail Laporan #{selectedReport.id}</h3>
+                <button 
+                  onClick={() => setShowDetailModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
               </div>
               
-              <div>
-                <label className="font-medium text-gray-700">Lokasi:</label>
-                <p className="text-gray-900">{selectedReport.location}</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Judul Laporan</label>
+                  <p className="text-sm text-gray-900">{selectedReport.title}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                  <p className="text-sm text-gray-900">{selectedReport.description}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                    <p className="text-sm text-gray-900">{selectedReport.category}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedReport.status)}`}>
+                      {selectedReport.status === 'pending' ? 'Menunggu' :
+                       selectedReport.status === 'in_progress' ? 'Dalam Progress' :
+                       selectedReport.status === 'completed' ? 'Selesai' : 'Ditolak'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+                  <p className="text-sm text-gray-900 flex items-center">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    {selectedReport.location}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kontak Pelapor</label>
+                  <p className="text-sm text-gray-900 flex items-center">
+                    <Phone className="w-4 h-4 mr-1" />
+                    {selectedReport.reporter_phone}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Laporan</label>
+                  <p className="text-sm text-gray-900 flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {selectedReport.created_at}
+                  </p>
+                </div>
               </div>
-              
-              <div>
-                <label className="font-medium text-gray-700">Deskripsi:</label>
-                <p className="text-gray-900">Deskripsi kejadian akan ditampilkan di sini...</p>
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  handleEditStatus(selectedReport);
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Edit Status
-              </button>
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                Tutup
-              </button>
             </div>
           </div>
         </div>
       )}
 
       {showStatusModal && selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Update Status Laporan</h3>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.target);
-              handleStatusUpdate(
-                selectedReport.id,
-                formData.get('status'),
-                formData.get('notes')
-              );
-            }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-semibold">Update Status Laporan</h3>
+                <button 
+                  onClick={() => setShowStatusModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              </div>
+              
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status Baru:
-                  </label>
-                  <select
-                    name="status"
-                    defaultValue={selectedReport.status}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status Baru</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="pending">Menunggu</option>
+                    <option value="in_progress">Dalam Progress</option>
+                    <option value="completed">Selesai</option>
+                    <option value="rejected">Ditolak</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catatan:
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Catatan</label>
                   <textarea
-                    name="notes"
-                    rows={3}
+                    rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Tambahkan catatan untuk perubahan status..."
-                  />
+                  ></textarea>
                 </div>
               </div>
               
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  type="button"
                   onClick={() => setShowStatusModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Batal
                 </button>
                 <button
-                  type="submit"
+                  onClick={() => handleStatusUpdate(selectedReport.id, 'in_progress', 'Status diupdate')}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                 >
                   Update Status
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h3 className="text-xl font-semibold">Tambah Laporan Baru</h3>
+                <button 
+                  onClick={() => setShowAddReportModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                  <h4 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Informasi Laporan</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Judul Laporan *</label>
+                      <input
+                        type="text"
+                        value={newReport.title}
+                        onChange={(e) => setNewReport({...newReport, title: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Masukkan judul laporan"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi Lengkap *</label>
+                      <textarea
+                        rows="4"
+                        value={newReport.description}
+                        onChange={(e) => setNewReport({...newReport, description: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Jelaskan detail laporan dengan lengkap"
+                        required
+                      ></textarea>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Kategori *</label>
+                        <select
+                          value={newReport.category}
+                          onChange={(e) => setNewReport({...newReport, category: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        >
+                          <option value="">Pilih Kategori</option>
+                          <option value="infrastruktur">Infrastruktur</option>
+                          <option value="keamanan">Keamanan</option>
+                          <option value="kebersihan">Kebersihan</option>
+                          <option value="layanan">Layanan Publik</option>
+                          <option value="kesehatan">Kesehatan</option>
+                          <option value="pendidikan">Pendidikan</option>
+                          <option value="lingkungan">Lingkungan</option>
+                          <option value="transportasi">Transportasi</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi Kejadian *</label>
+                      <textarea
+                        rows="2"
+                        value={newReport.location}
+                        onChange={(e) => setNewReport({...newReport, location: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Alamat lengkap lokasi kejadian (Jalan, RT/RW, Kelurahan, Kecamatan)"
+                        required
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Data Pelapor</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap Pelapor *</label>
+                      <input
+                        type="text"
+                        value={newReport.reporter.name}
+                        onChange={(e) => setNewReport({
+                          ...newReport, 
+                          reporter: {...newReport.reporter, name: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nama lengkap sesuai identitas"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon *</label>
+                      <input
+                        type="tel"
+                        value={newReport.reporter.phone}
+                        onChange={(e) => setNewReport({
+                          ...newReport, 
+                          reporter: {...newReport.reporter, phone: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="08xxxxxxxxxx"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={newReport.reporter.email}
+                        onChange={(e) => setNewReport({
+                          ...newReport, 
+                          reporter: {...newReport.reporter, email: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="email@example.com (opsional)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Alamat Pelapor *</label>
+                      <textarea
+                        rows="3"
+                        value={newReport.reporter.address}
+                        onChange={(e) => setNewReport({
+                          ...newReport, 
+                          reporter: {...newReport.reporter, address: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Alamat lengkap pelapor (Jalan, RT/RW, Kelurahan, Kecamatan, Kota)"
+                        required
+                      ></textarea>
+                    </div>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className="text-sm text-blue-800">
+                          <strong>Catatan:</strong>
+                          <ul className="list-disc list-inside mt-2 text-xs space-y-1">
+                            <li>Data pelapor akan dijaga kerahasiaannya</li>
+                            <li>Informasi kontak digunakan untuk follow-up laporan</li>
+                            <li>Laporan akan diverifikasi sebelum diproses</li>
+                            <li>Field bertanda (*) wajib diisi</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-8 pt-6 border-t">
+                <button
+                  onClick={() => setShowAddReportModal(false)}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSubmitNewReport}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Tambah Laporan
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -38,7 +38,7 @@ export default function LoginPresenter() {
         
         if (userData.role === "admin") {
           console.log("Redirecting to admin dashboard");
-          navigate("/admin");
+          navigate("/staff");
         } else if (userData.role === "petugas") {
           console.log("Redirecting to staff dashboard");
           navigate("/staff");

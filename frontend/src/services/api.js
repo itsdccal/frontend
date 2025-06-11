@@ -81,7 +81,7 @@ export const getReportDetail = async (id) => {
 
 export const updateProfile = async (id, data) => {
   try {
-    const response = await api.put(`/users/${id}/update-profile`, data);
+    const response = await api.put(`/users/${id}/profile`, data);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -90,7 +90,7 @@ export const updateProfile = async (id, data) => {
 
 export const changePassword = async (id, data) => {
   try {
-    const response = await api.put(`/users/${id}/update-password`, data);
+    const response = await api.put(`/users/${id}/password`, data);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
