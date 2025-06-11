@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { Shield, ArrowLeft, MapPin, Users, Camera, Clock, CheckCircle, AlertTriangle, Upload, FileText, X, AlertCircle } from 'lucide-react';
+import { Shield, ArrowLeft, MapPin, Users, Camera, CheckCircle, AlertTriangle, Upload, FileText, X, AlertCircle } from 'lucide-react';
 import "leaflet/dist/leaflet.css";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,402 +12,48 @@ L.Icon.Default.mergeOptions({
 });
 
 function LocationPicker({ onChange, position }) {
-  useMapEvents({
+  const map = useMapEvents({
     click(e) {
-      const { lat, lng } = e.latlng;
-      onChange(lat, lng);
+      onChange(e.latlng.lat, e.latlng.lng);
     },
   });
+
+  useEffect(() => {
+    if (map && position && position[0] != null && position[1] != null) {
+      map.setView(position, map.getZoom());
+    }
+  }, [position, map]);
 
   return position ? <Marker position={position} /> : null;
 }
 
-const StandardFormComponent = () => {
-  const [form, setForm] = useState({
-    reporterName: "",
-    reporterPhone: "",
-    reporterAddress: "",
-    reporterRT: "",
-    reporterRW: "",
-    reporterKelurahan: "",
-    reporterKecamatan: "",
-    rescueType: "",
-    title: "",
-    description: "",
-    location: "",
-    additionalInfo: "",
-    latitude: "",
-    longitude: "",
-    images: []
-  });
+const rescueTypes = [
+  { value: 'evakuasi_penyelamatan_hewan', label: 'Evakuasi/Penyelamatan Hewan' },
+  { value: 'kebakaran', label: 'Kebakaran' },
+  { value: 'layanan_lingkungan_dan_fasilitas_umum', label: 'Layanan Lingkungan & Fasilitas Umum' },
+  { value: 'penyelamatan_non_hewan_dan_bantuan_teknis', label: 'Penyelamatan Non Hewan & Bantuan Teknis' },
+];
 
-  const [mlValidation, setMLValidation] = useState(null);
-  const [previewImages, setPreviewImages] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [validationTimeout, setValidationTimeout] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const fileInputRef = useRef(null);
-
-  const rescueTypes = [
-    { value: 'pembongkaran_kunci', label: 'Pembongkaran Kunci/Pintu' },
-    { value: 'evakuasi_korban_kebakaran', label: 'Evakuasi Korban Kebakaran' },
-    { value: 'evakuasi_korban_banjir', label: 'Evakuasi Korban Banjir' },
-    { value: 'penyelamatan_ketinggian', label: 'Penyelamatan dari Ketinggian' },
-    { value: 'penyelamatan_sumur', label: 'Penyelamatan dari Sumur' },
-    { value: 'penyelamatan_air', label: 'Penyelamatan dari Air/Sungai' },
-    { value: 'penyelamatan_hewan', label: 'Penyelamatan Hewan Ternak' },
-    { value: 'penyelamatan_kucing', label: 'Penyelamatan Kucing dari Pohon' },
-    { value: 'evakuasi_medis', label: 'Evakuasi Medis Darurat' },
-    { value: 'pembebasan_jepitan', label: 'Pembebasan Korban Terjepit' },
-    { value: 'penyelamatan_gua', label: 'Penyelamatan dari Gua/Lubang' },
-    { value: 'bantuan_persalinan', label: 'Bantuan Persalinan Darurat' }
-  ];
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      previewImages.forEach(url => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
-  }, [previewImages]);
-
-  const validatePhone = (phone) => {
-    const phoneRegex = /^(\+62|62|0)[0-9]{9,13}$/;
-    return phoneRegex.test(phone.replace(/\s|-/g, ''));
-  };
-
-  const validateFileSize = (file) => {
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    return file.size <= maxSize;
-  };
-
-  const validateFileType = (file) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/mov'];
-    return allowedTypes.includes(file.type);
-  };
-
-  const sanitizeInput = (input) => {
-    return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-                .replace(/[<>]/g, '');
-  };
-
-  const validateWithML = useCallback(async (description, rescueType) => {
-    if (!description || description.length < 10) {
-      setMLValidation(null);
-      return;
-    }
-
-    clearTimeout(validationTimeout);
-    const timeout = setTimeout(async () => {
-      try {
-        const mlResult = simulateMLValidation(description, rescueType);
-        setMLValidation(mlResult);
-      } catch (error) {
-        console.error('ML validation error:', error);
-        setMLValidation({
-          isRescue: true,
-          confidence: 50,
-          suggestions: [],
-          message: '⚠️ ML validation unavailable, please review manually'
-        });
-      }
-    }, 1500); 
-    
-    setValidationTimeout(timeout);
-  }, [validationTimeout]);
-
-  const simulateMLValidation = (text, type) => {
-    const lowerText = text.toLowerCase();
-    let confidence = 75;
-    let isCorrectCategory = true;
-    let suggestions = [];
-
-    if (lowerText.includes('kebakaran') || lowerText.includes('api') || lowerText.includes('terbakar') || lowerText.includes('asap')) {
-      isCorrectCategory = false;
-      confidence = 90;
-      suggestions.push('Ini sepertinya laporan kebakaran, bukan rescue');
-    } else if (lowerText.includes('kunci') && type !== 'pembongkaran_kunci') {
-      suggestions.push('Mungkin yang dimaksud pembongkaran kunci?');
-      confidence = 85;
-    } else if ((lowerText.includes('hewan') || lowerText.includes('kucing') || lowerText.includes('anjing')) && !type.includes('hewan') && !type.includes('kucing')) {
-      suggestions.push('Sepertinya terkait penyelamatan hewan');
-      confidence = 80;
-    } else if ((lowerText.includes('air') || lowerText.includes('sungai') || lowerText.includes('kolam')) && type !== 'penyelamatan_air') {
-      suggestions.push('Mungkin penyelamatan dari air?');
-      confidence = 82;
-    }
-
-    if (lowerText.includes('darurat') || lowerText.includes('segera') || lowerText.includes('urgent')) {
-      suggestions.push('Prioritas tinggi terdeteksi');
-      confidence += 5;
-    }
-
-    return {
-      isRescue: isCorrectCategory,
-      confidence: Math.min(confidence, 95),
-      suggestions,
-      message: isCorrectCategory 
-        ? `✅ ML Validation: Rescue operation confirmed (${confidence}% confidence)`
-        : `⚠️ ML Warning: This might be fire-related, not rescue (${confidence}% confidence)`
-    };
-  };
-
-  const validateStep = (step) => {
-    const newErrors = {};
-
-    if (step === 1) {
-      if (!form.reporterName.trim()) newErrors.reporterName = 'Nama wajib diisi';
-      if (!form.reporterPhone.trim()) {
-        newErrors.reporterPhone = 'Nomor telepon wajib diisi';
-      } else if (!validatePhone(form.reporterPhone)) {
-        newErrors.reporterPhone = 'Format nomor telepon tidak valid';
-      }
-      if (!form.reporterAddress.trim()) newErrors.reporterAddress = 'Alamat wajib diisi';
-      if (!form.reporterKelurahan.trim()) newErrors.reporterKelurahan = 'Kelurahan wajib diisi';
-      if (!form.reporterKecamatan.trim()) newErrors.reporterKecamatan = 'Kecamatan wajib diisi';
-    }
-
-    if (step === 2) {
-      if (!form.rescueType) newErrors.rescueType = 'Jenis rescue wajib dipilih';
-      if (!form.title.trim()) newErrors.title = 'Judul laporan wajib diisi';
-      if (!form.description.trim()) {
-        newErrors.description = 'Deskripsi kejadian wajib diisi';
-      } else if (form.description.trim().length < 20) {
-        newErrors.description = 'Deskripsi terlalu singkat (minimal 20 karakter)';
-      }
-    }
-
-    if (step === 3) {
-      if (!form.location.trim()) newErrors.location = 'Alamat lokasi wajib diisi';
-      if (!form.latitude || !form.longitude) newErrors.coordinates = 'Koordinat lokasi wajib dipilih pada peta';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, files } = e.target;
-    
-    if (name === "images" && files) {
-      const newImages = Array.from(files);
-      const validImages = [];
-      const newPreviews = [];
-      const fileErrors = [];
-
-      newImages.forEach((file, index) => {
-        if (!validateFileSize(file)) {
-          fileErrors.push(`File ${file.name} terlalu besar (maksimal 10MB)`);
-          return;
-        }
-        if (!validateFileType(file)) {
-          fileErrors.push(`File ${file.name} format tidak didukung`);
-          return;
-        }
-        
-        validImages.push(file);
-        newPreviews.push(URL.createObjectURL(file));
-      });
-
-      if (fileErrors.length > 0) {
-        alert(fileErrors.join('\n'));
-      }
-
-      setPreviewImages(prev => [...prev, ...newPreviews]);
-      setForm(prev => ({
-        ...prev,
-        images: [...prev.images, ...validImages]
-      }));
-    } else {
-      const sanitizedValue = typeof value === 'string' ? sanitizeInput(value) : value;
-      setForm(prev => ({
-        ...prev,
-        [name]: sanitizedValue,
-      }));
-
-      if (errors[name]) {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[name];
-          return newErrors;
-        });
-      }
-
-      if (name === 'description' || name === 'rescueType') {
-        validateWithML(name === 'description' ? sanitizedValue : form.description, name === 'rescueType' ? sanitizedValue : form.rescueType);
-      }
-    }
-  };
-
-  const handleLocationChange = (lat, lng) => {
-    setForm(prev => ({
-      ...prev,
-      latitude: lat,
-      longitude: lng,
-    }));
-    
-    if (errors.coordinates) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.coordinates;
-        return newErrors;
-      });
-    }
-  };
-
-  const getCurrentLocation = () => {
-    setLocationLoading(true);
-    
-    if (!navigator.geolocation) {
-      alert('Geolocation tidak didukung oleh browser ini');
-      setLocationLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        handleLocationChange(position.coords.latitude, position.coords.longitude);
-        setLocationLoading(false);
-      },
-      (error) => {
-        let errorMessage = 'Gagal mendapatkan lokasi: ';
-        switch(error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += 'Izin lokasi ditolak';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += 'Informasi lokasi tidak tersedia';
-            break;
-          case error.TIMEOUT:
-            errorMessage += 'Timeout mendapatkan lokasi';
-            break;
-          default:
-            errorMessage += 'Error tidak diketahui';
-            break;
-        }
-        alert(errorMessage);
-        setLocationLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
-    );
-  };
-
-  const removeImage = (index) => {
-    if (previewImages[index].startsWith('blob:')) {
-      URL.revokeObjectURL(previewImages[index]);
-    }
-    
-    setPreviewImages(prev => prev.filter((_, i) => i !== index));
-    setForm(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateStep(3)) {
-      return;
-    }
-
-    if (!isOnline) {
-      alert('Tidak ada koneksi internet. Laporan akan dikirim saat koneksi kembali.');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const formData = new FormData();
-      Object.keys(form).forEach(key => {
-        if (key === 'images') {
-          form.images.forEach((image, index) => {
-            formData.append(`image_${index}`, image);
-          });
-        } else if (form[key]) {
-          formData.append(key, form[key]);
-        }
-      });
-
-      formData.append('mlValidation', JSON.stringify(mlValidation));
-      formData.append('reportType', 'rescue');
-      formData.append('reportMode', 'standard');
-      formData.append('reportDate', new Date().toISOString());
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const reportId = Math.random().toString(36).substr(2, 9).toUpperCase();
-      alert(`✅ Laporan rescue berhasil dikirim!\n\nID Laporan: ${reportId}\nTim Damkar akan segera menindaklanjuti.\n\nSimpan ID laporan untuk tracking.`);
-      
-      setForm({
-        reporterName: "",
-        reporterPhone: "",
-        reporterAddress: "",
-        reporterRT: "",
-        reporterRW: "",
-        reporterKelurahan: "",
-        reporterKecamatan: "",
-        rescueType: "",
-        title: "",
-        description: "",
-        location: "",
-        additionalInfo: "",
-        latitude: "",
-        longitude: "",
-        images: []
-      });
-      setPreviewImages([]);
-      setCurrentStep(1);
-      setMLValidation(null);
-
-    } catch (error) {
-      alert('❌ Gagal mengirim laporan: ' + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const nextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
-  };
-
-  const applySuggestion = (suggestion) => {
-    setForm(prev => ({
-      ...prev,
-      description: prev.description + (prev.description ? ' ' : '') + suggestion
-    }));
-  };
-
-  return (
+export default function StandardForm({
+  form,
+  previewImages,
+  mlValidation,
+  isSubmitting,
+  currentStep,
+  errors,
+  isOnline,
+  locationLoading,
+  fileInputRef,
+  onInputChange,
+  onLocationChange,
+  onSubmit,
+  getCurrentLocation,
+  removeImage,
+  applySuggestion,
+  nextStep,
+  prevStep,
+}) {
+    return (
     <div className="min-h-screen mt-[64px] bg-gradient-to-br from-green-50 to-blue-50">
       {!isOnline && (
         <div className="bg-red-500 text-white text-center py-2 text-sm">
@@ -520,9 +166,9 @@ const StandardFormComponent = () => {
                       </label>
                       <input
                         type="text"
-                        name="reporterName"
-                        value={form.reporterName}
-                        onChange={handleInputChange}
+                        name="reporterInfo.name"
+                        value={form.reporterInfo.name}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.reporterName ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -540,9 +186,9 @@ const StandardFormComponent = () => {
                       </label>
                       <input
                         type="tel"
-                        name="reporterPhone"
-                        value={form.reporterPhone}
-                        onChange={handleInputChange}
+                        name="reporterInfo.phone"
+                        value={form.reporterInfo.phone}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.reporterPhone ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -562,9 +208,9 @@ const StandardFormComponent = () => {
                     </label>
                     <input
                       type="text"
-                      name="reporterAddress"
-                      value={form.reporterAddress}
-                      onChange={handleInputChange}
+                      name="reporterInfo.address"
+                      value={form.reporterInfo.address}
+                      onChange={onInputChange}
                       className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                         errors.reporterAddress ? 'border-red-500' : 'border-gray-300'
                       }`}
@@ -581,9 +227,9 @@ const StandardFormComponent = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">RT</label>
                       <input
                         type="text"
-                        name="reporterRT"
-                        value={form.reporterRT}
-                        onChange={handleInputChange}
+                        name="reporterInfo.rt"
+                        value={form.reporterInfo.rt}
+                        onChange={onInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base"
                         maxLength="3"
                       />
@@ -592,9 +238,9 @@ const StandardFormComponent = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">RW</label>
                       <input
                         type="text"
-                        name="reporterRW"
-                        value={form.reporterRW}
-                        onChange={handleInputChange}
+                        name="reporterInfo.rw"
+                        value={form.reporterInfo.rw}
+                        onChange={onInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base"
                         maxLength="3"
                       />
@@ -603,9 +249,9 @@ const StandardFormComponent = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Kelurahan *</label>
                       <input
                         type="text"
-                        name="reporterKelurahan"
-                        value={form.reporterKelurahan}
-                        onChange={handleInputChange}
+                        name="reporterInfo.kelurahan"
+                        value={form.reporterInfo.kelurahan}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.reporterKelurahan ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -620,9 +266,9 @@ const StandardFormComponent = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Kecamatan *</label>
                       <input
                         type="text"
-                        name="reporterKecamatan"
-                        value={form.reporterKecamatan}
-                        onChange={handleInputChange}
+                        name="reporterInfo.kecamatan"
+                        value={form.reporterInfo.kecamatan}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.reporterKecamatan ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -663,7 +309,7 @@ const StandardFormComponent = () => {
                       <select
                         name="rescueType"
                         value={form.rescueType}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.rescueType ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -690,7 +336,7 @@ const StandardFormComponent = () => {
                         type="text"
                         name="title"
                         value={form.title}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.title ? 'border-red-500' : 'border-gray-300'
                         }`}
@@ -710,7 +356,7 @@ const StandardFormComponent = () => {
                       <textarea
                         name="description"
                         value={form.description}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         rows={4}
                         className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
                           errors.description ? 'border-red-500' : 'border-gray-300'
@@ -734,7 +380,7 @@ const StandardFormComponent = () => {
                       <textarea
                         name="additionalInfo"
                         value={form.additionalInfo}
-                        onChange={handleInputChange}
+                        onChange={onInputChange}
                         rows={3}
                         className="w-full px-3 py-2 lg:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base"
                         placeholder="Informasi lain yang perlu diketahui tim rescue..."
@@ -767,74 +413,76 @@ const StandardFormComponent = () => {
             {currentStep === 3 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Location */}
                   <div className="bg-blue-50 p-4 lg:p-6 rounded-lg">
                     <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                       <MapPin className="w-5 h-5 mr-2" />
                       Lokasi Kejadian
                     </h3>
-                    
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Alamat Lengkap *
-                      </label>
-                      <input
-                        type="text"
-                        name="location"
-                        value={form.location}
-                        onChange={handleInputChange}
-                        className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm lg:text-base ${
-                          errors.location ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Alamat lengkap lokasi kejadian"
-                        aria-describedby={errors.location ? "location-error" : undefined}
-                        required
-                      />
-                      {errors.location && (
-                        <p id="location-error" className="text-red-500 text-xs mt-1">{errors.location}</p>
-                      )}
-                    </div>
-                    
+    
                     <div className="border-2 border-gray-300 rounded-lg overflow-hidden mb-3">
                       <MapContainer
                         center={
-                          form.latitude && form.longitude
-                            ? [form.latitude, form.longitude]
-                            : [-5.1477, 119.4327]
+                          form.location.latitude && form.location.longitude
+                            ? [form.location.latitude, form.location.longitude]
+                            : [-5.1477, 119.4327] 
                         }
                         zoom={13}
                         style={{ height: "250px", width: "100%" }}
                       >
                         <TileLayer
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          attribution='&copy; OpenStreetMap'
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         />
-                        <LocationPicker 
-                          onChange={handleLocationChange}
+                        <LocationPicker
+                          onChange={onLocationChange} 
                           position={
-                            form.latitude && form.longitude
-                              ? [form.latitude, form.longitude]
+                            form.location.latitude && form.location.longitude
+                              ? [form.location.latitude, form.location.longitude]
                               : null
                           }
                         />
                       </MapContainer>
                     </div>
-
-                    {errors.coordinates && (
+    
+                    {(errors.location || errors.coordinates) && (
                       <div className="bg-red-50 border border-red-200 rounded p-2 mb-3">
                         <p className="text-red-600 text-xs flex items-center">
                           <AlertCircle className="w-4 h-4 mr-1" />
-                          {errors.coordinates}
+                          {errors.location?.address || errors.coordinates || errors.location} 
                         </p>
                       </div>
                     )}
-
+    
+                    <div>
+                      <label htmlFor="locationAddress" className="block text-sm font-medium text-gray-700 mb-2">
+                        Alamat Lokasi Kejadian *
+                      </label>
+                      <input
+                        type="text"
+                        name="location.address"
+                        id="locationAddress"
+                        value={form.location.address}
+                        onChange={onInputChange}
+                        className={`w-full px-3 py-2 lg:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm lg:text-base ${
+                          errors.location?.address ? 'border-red-500' : 'border-gray-300' 
+                        }`}
+                        placeholder="Alamat lengkap lokasi kebakaran"
+                        aria-describedby={errors.location?.address ? "location-address-error" : undefined}
+                        required
+                      />
+                      {errors.location?.address && (
+                        <p id="location-address-error" className="text-red-500 text-xs mt-1">
+                          {errors.location.address}
+                        </p>
+                      )}
+                    </div>
+    
                     <div className="text-sm text-gray-600 bg-white p-3 rounded mb-3">
                       <p className="font-medium mb-1">Koordinat:</p>
-                      <p>Lat: {form.latitude ? parseFloat(form.latitude).toFixed(6) : 'Klik pada peta'}</p>
-                      <p>Lng: {form.longitude ? parseFloat(form.longitude).toFixed(6) : 'untuk pilih lokasi'}</p>
+                      <p>Lat: {form.location.latitude ? parseFloat(form.location.latitude).toFixed(6) : 'Tap pada peta'}</p>
+                      <p>Lng: {form.location.longitude ? parseFloat(form.location.longitude).toFixed(6) : 'untuk pilih lokasi'}</p>
                     </div>
-
+    
                     <button
                       type="button"
                       onClick={getCurrentLocation}
@@ -861,9 +509,9 @@ const StandardFormComponent = () => {
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors mb-4">
                       <input
                         type="file"
-                        name="images"
-                        accept="image/jpeg,image/png,image/gif,video/mp4,video/mov"
-                        onChange={handleInputChange}
+                        name="mediaUpload"
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
+                        onChange={onInputChange}
                         multiple
                         className="hidden"
                         id="mediaUpload"
@@ -888,16 +536,24 @@ const StandardFormComponent = () => {
                         <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
                           {previewImages.map((preview, index) => (
                             <div key={index} className="relative group">
-                              <img
-                                src={preview}
-                                alt={`Preview ${index + 1}`}
-                                className="w-full h-20 object-cover rounded border"
-                              />
+                              {preview.type === 'image' ? (
+                                <img
+                                  src={preview.url}
+                                  alt={`Preview ${preview.name}`}
+                                  className="w-full h-20 object-cover rounded border"
+                                />
+                              ) : (
+                                <video
+                                  src={preview.url}
+                                  controls
+                                  className="w-full h-20 object-cover rounded border"
+                                />
+                              )}
                               <button
                                 type="button"
                                 onClick={() => removeImage(index)}
                                 className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 focus:outline-none"
-                                aria-label={`Hapus gambar ${index + 1}`}
+                                aria-label={`Hapus file ${preview.name}`}
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -945,7 +601,7 @@ const StandardFormComponent = () => {
                         ← Kembali
                       </button>
                       <button 
-                        onClick={handleSubmit}
+                        onClick={onSubmit}
                         disabled={isSubmitting || !isOnline}
                         className="flex-1 px-8 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg font-bold hover:from-green-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                       >
@@ -988,10 +644,7 @@ const StandardFormComponent = () => {
         </button>
       </div>
 
-      {/* Bottom padding for mobile CTA */}
       <div className="h-20 sm:h-0"></div>
     </div>
   );
-};
-
-export default StandardFormComponent;
+}
