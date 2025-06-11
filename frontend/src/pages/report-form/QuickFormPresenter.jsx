@@ -248,7 +248,7 @@ export default function QuickFormPresenter() {
     const { name, value, type, checked, files } = e.target;
     let sanitizedValue = typeof value === "string" ? sanitizeInput(value) : value;
 
-    if (name === "media" && files && files[0]) {
+    if (name === "image" && files && files[0]) {
       const file = files[0];
 
       if (!validateFileSize(file)) {
