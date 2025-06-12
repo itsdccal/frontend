@@ -17,7 +17,6 @@ const AdminSidebar = ({
       id: 'reports',
       label: 'Laporan',
       icon: FileText,
-      badge: '23'
     },
     {
       id: 'users',
@@ -33,19 +32,15 @@ const AdminSidebar = ({
     }
   };
 
-  // Mobile Overlay
   if (isMobileMenuOpen) {
     return (
       <>
-        {/* Background Overlay */}
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsMobileMenuOpen(false)}
         />
         
-        {/* Mobile Sidebar */}
-        <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300">
-          {/* Header */}
+        <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 flex flex-col">
           <div className="p-4 border-b bg-red-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -66,8 +61,7 @@ const AdminSidebar = ({
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             <div className="px-2 py-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Menu Admin
@@ -99,8 +93,7 @@ const AdminSidebar = ({
             ))}
           </nav>
 
-          {/* Footer */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
+          <div className="p-4 border-t bg-gray-50 mt-auto">
             <div className="text-center">
               <p className="text-xs text-gray-500 mb-1">Dinas Pemadam Kebakaran</p>
               <p className="text-xs text-gray-400">Kota Makassar</p>
@@ -111,10 +104,8 @@ const AdminSidebar = ({
     );
   }
 
-  // Desktop Sidebar
   return (
-    <div className="hidden lg:flex lg:flex-col lg:w-64 lg:bg-white lg:shadow-sm lg:border-r lg:min-h-screen">
-      {/* Header */}
+    <div className="hidden lg:flex lg:flex-col lg:w-64 lg:bg-white lg:shadow-sm lg:border-r lg:h-screen lg:fixed lg:left-0 lg:top-0">
       <div className="p-6 border-b">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
@@ -127,8 +118,7 @@ const AdminSidebar = ({
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         <div className="px-2 py-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Menu Admin
@@ -160,8 +150,7 @@ const AdminSidebar = ({
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t bg-gray-50">
+      <div className="p-4 border-t bg-gray-50 mt-auto">
         <div className="text-center">
           <p className="text-xs text-gray-500 mb-2">Dinas Pemadam Kebakaran</p>
           <p className="text-xs text-gray-400">Kota Makassar</p>

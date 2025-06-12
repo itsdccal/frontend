@@ -1486,18 +1486,6 @@ const ReportsView = () => {
             <div className="sticky bottom-0 bg-white border-t p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between gap-3">
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={() => alert('Fitur cetak laporan sedang dikembangkan.')}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-                  >
-                    🖨️ Print
-                  </button>
-                  <button
-                    onClick={() => alert('Fitur ekspor laporan sedang dikembangkan.')}
-                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
-                  >
-                    📄 Export
-                  </button>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
