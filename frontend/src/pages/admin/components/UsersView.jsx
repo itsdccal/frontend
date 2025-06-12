@@ -46,7 +46,6 @@ const UsersView = () => {
     setError(null);
     try {
       const response = await getUsers({ role: 'petugas' }); 
-      console.log('API Response for staff:', response); 
       
       if (response && response.status === 'success' && Array.isArray(response.listUser)) {
         setStaffList(response.listUser);

@@ -17,7 +17,6 @@ import StandardReportForm from "./pages/report-form/StandardFormPresenter";
 import QuickReportForm from "./pages/report-form/QuickFormPresenter";
 
 import About from "./pages/about/About";
-import Statistics from "./pages/statistics/Statistics";
 
 import "leaflet/dist/leaflet.css";
 
@@ -34,7 +33,6 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/about" element={<About />} />
-        <Route path="/statistics" element={<Statistics />} />
         
         <Route path="/reports/quick" element={<QuickReportForm />} />
         <Route path="/reports/standard" element={<StandardReportForm />} />

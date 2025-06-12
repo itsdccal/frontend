@@ -179,4 +179,26 @@ export const deleteStaff = async (id, token) => {
   }
 };
 
+export const updateStaffProfile = async (id, data) => {
+  try {
+    const response = await api.put(`/staff/${id}`, data);
+    return response.data; 
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateStaffPassword = async (id, newPassword, confirmPassword) => {
+  try {
+    const response = await api.put(`/staff/${id}/password`, {
+      newPassword,
+      confirmPassword,
+    });
+    return response.data; 
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+
 export default api;

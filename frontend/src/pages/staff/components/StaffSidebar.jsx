@@ -17,7 +17,6 @@ const StaffSidebar = ({
       id: 'reports',
       label: 'Laporan',
       icon: FileText,
-      badge: '23'
     },
     {
       id: 'settings',
@@ -84,11 +83,6 @@ const StaffSidebar = ({
                   <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-blue-600' : 'text-gray-500'}`} />
                   <span className="font-medium">{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
-                    {item.badge}
-                  </span>
-                )}
               </button>
             ))}
           </nav>
@@ -107,7 +101,7 @@ const StaffSidebar = ({
 
   // Desktop Sidebar
   return (
-    <div className="hidden lg:flex lg:flex-col lg:w-64 lg:bg-white lg:shadow-sm lg:border-r lg:min-h-screen">
+    <div className="hidden lg:flex lg:flex-col lg:w-64 lg:bg-white lg:shadow-sm lg:border-r lg:h-screen lg:fixed lg:left-0 lg:top-0">
       {/* Header */}
       <div className="p-6 border-b">
         <div className="flex items-center space-x-3">

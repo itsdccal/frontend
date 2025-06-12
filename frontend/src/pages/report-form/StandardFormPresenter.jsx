@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createReport, getUserDetail } from "../../services/api"; 
+import { sendWhatsAppMessage, createReportWhatsAppMessage } from "../../services/whatsappservice";
 import StandardForm from "./StandardForm";
 
 export default function StandardFormPresenter() {
@@ -46,7 +47,7 @@ export default function StandardFormPresenter() {
   };
 
   const validateFileSize = (file) => {
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     return file.size <= maxSize;
   };
 
@@ -59,43 +60,11 @@ export default function StandardFormPresenter() {
   const sanitizeInput = (input) => {
     return input
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/[<>]/g, "");
+      .replace(/<[^>]*>/g, "")
+      .trim();
   };
 
   useEffect(() => {
-    const fetchAndSetUserData = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const user = localStorage.getItem("user");
-          const userDataFromLocalStorage = JSON.parse(user);
-          const userId = userDataFromLocalStorage.userId;
-
-          const responseData = await getUserDetail(userId);
-          const userProfile = responseData.user;
-
-          setForm((prevForm) => ({
-            ...prevForm,
-            reporterInfo: {
-              name: userProfile.name || "",
-              phone: userProfile.phone || "",
-              address: userProfile.address || "",
-              rt: userProfile.rt || "",
-              rw: userProfile.rw || "",
-              kelurahan: userProfile.kelurahan || "",
-              kecamatan: userProfile.kecamatan || "",
-            },
-          }));
-        } catch (error) {
-          console.error("Error fetching user data for form defaults:", error);
-          setUserDataError(
-            `Gagal memuat data profil: ${error.message || "Terjadi kesalahan."}`
-          );
-        }
-      }
-    };
-    fetchAndSetUserData();
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -105,118 +74,200 @@ export default function StandardFormPresenter() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      clearTimeout(validationTimeout); 
     };
-  }, [validationTimeout]);
+  }, []);
 
   useEffect(() => {
-      return () => {
-        previewImages.forEach((previewItem) => {
-          if (previewItem.url && previewItem.url.startsWith("blob:")) {
-            URL.revokeObjectURL(previewItem.url);
+    const loadUserData = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const userData = await getUserDetail("me");
+          if (userData && userData.data) {
+            setForm((prev) => ({
+              ...prev,
+              reporterInfo: {
+                name: userData.data.name || "",
+                phone: userData.data.phone || "",
+                address: userData.data.address || "",
+                rt: userData.data.rt || "",
+                rw: userData.data.rw || "",
+                kelurahan: userData.data.kelurahan || "",
+                kecamatan: userData.data.kecamatan || "",
+              },
+            }));
           }
-        });
-      };
-    }, [previewImages]);
-
-  const simulateMLValidation = useCallback((text, type) => {
-    const lowerText = text.toLowerCase();
-    let confidence = 75;
-    let isCorrectCategory = true;
-    let suggestions = [];
-
-    if (lowerText.includes('kebakaran') || lowerText.includes('api') || lowerText.includes('terbakar') || lowerText.includes('asap')) {
-      isCorrectCategory = false;
-      confidence = 90;
-      suggestions.push('Ini sepertinya laporan kebakaran, bukan rescue');
-    } else if (lowerText.includes('kunci') && type !== 'pembongkaran_kunci') {
-      suggestions.push('Mungkin yang dimaksud pembongkaran kunci?');
-      confidence = 85;
-    } else if ((lowerText.includes('hewan') || lowerText.includes('kucing') || lowerText.includes('anjing')) && !type.includes('hewan') && !type.includes('kucing')) {
-      suggestions.push('Sepertinya terkait penyelamatan hewan');
-      confidence = 80;
-    } else if ((lowerText.includes('air') || lowerText.includes('sungai') || lowerText.includes('kolam')) && type !== 'penyelamatan_air') {
-      suggestions.push('Mungkin penyelamatan dari air?');
-      confidence = 82;
-    }
-
-    if (lowerText.includes('darurat') || lowerText.includes('segera') || lowerText.includes('urgent')) {
-      suggestions.push('Prioritas tinggi terdeteksi');
-      confidence += 5;
-    }
-
-    return {
-      isRescue: isCorrectCategory,
-      confidence: Math.min(confidence, 95),
-      suggestions,
-      message: isCorrectCategory
-        ? `✅ ML Validation: Rescue operation confirmed (${confidence}% confidence)`
-        : `⚠️ ML Warning: This might be fire-related, not rescue (${confidence}% confidence)`
+        } catch (err) {
+          console.error("Error loading user data:", err);
+          setUserDataError("Gagal memuat data pengguna. Silakan isi manual.");
+        }
+      }
     };
-  }, []); 
 
-  const validateWithML = useCallback(
-    (description, rescueType) => {
-      if (!description || description.length < 10) {
-        setMLValidation(null);
-        return;
+    loadUserData();
+  }, []);
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation tidak didukung di browser ini.");
+      return;
+    }
+
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setForm((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            latitude: latitude.toString(),
+            longitude: longitude.toString(),
+          },
+        }));
+
+        fetch(
+          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.results && data.results.length > 0) {
+              const address = data.results[0].formatted;
+              setForm((prev) => ({
+                ...prev,
+                location: {
+                  ...prev.location,
+                  address: address,
+                },
+              }));
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching address:", error);
+          })
+          .finally(() => {
+            setLocationLoading(false);
+          });
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan akses lokasi.");
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  };
+
+  const validateMLInput = useCallback((title, description, type) => {
+    if (validationTimeout) {
+      clearTimeout(validationTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      const combinedText = `${title} ${description}`.toLowerCase();
+      const rescueType = type.toLowerCase();
+      
+      let confidence = 70;
+      let suggestions = [];
+      let isCorrectCategory = true;
+
+      const rescueKeywords = ['selamat', 'tolong', 'bantuan', 'terjebak', 'tenggelam', 'jatuh', 'terjepit'];
+      const hasRescueKeywords = rescueKeywords.some(keyword => combinedText.includes(keyword));
+
+      if (!hasRescueKeywords && combinedText.length > 0) {
+        suggestions.push('Pastikan ini adalah laporan penyelamatan/rescue');
+        confidence = 60;
+        isCorrectCategory = false;
+      } else if (hasRescueKeywords) {
+        confidence = 85;
       }
 
-      clearTimeout(validationTimeout);
-      const timeout = setTimeout(async () => {
-        try {
-          const mlResult = simulateMLValidation(description, rescueType);
-          setMLValidation(mlResult);
-        } catch (error) {
-          console.error("ML validation error:", error);
-          setMLValidation({
-            isRescue: true,
-            confidence: 50,
-            suggestions: [],
-            message: "⚠️ Validasi ML tidak tersedia, harap tinjau manual",
-          });
-        }
-      }, 1500);
-      setValidationTimeout(timeout);
-    },
-    [validationTimeout, simulateMLValidation]
-  );
+      if ((combinedText.includes('hewan') || combinedText.includes('kucing') || combinedText.includes('anjing')) && !rescueType.includes('hewan') && !rescueType.includes('kucing')) {
+        suggestions.push('Sepertinya terkait penyelamatan hewan');
+        confidence = 80;
+      } else if ((combinedText.includes('air') || combinedText.includes('sungai') || combinedText.includes('kolam')) && rescueType !== 'penyelamatan_air') {
+        suggestions.push('Mungkin penyelamatan dari air?');
+        confidence = 82;
+      }
+
+      if (combinedText.includes('darurat') || combinedText.includes('segera') || combinedText.includes('urgent')) {
+        suggestions.push('Prioritas tinggi terdeteksi');
+        confidence += 5;
+      }
+
+      setMLValidation({
+        isRescue: isCorrectCategory,
+        confidence: Math.min(confidence, 95),
+        suggestions,
+        message: isCorrectCategory
+          ? `Laporan rescue tervalidasi (${confidence}% confidence)`
+          : `Mungkin bukan laporan rescue (${confidence}% confidence)`
+      });
+    }, 1000);
+
+    setValidationTimeout(timeout);
+  }, [validationTimeout]);
+
+  const removeImage = (index) => {
+    setPreviewImages(prev => prev.filter((_, i) => i !== index));
+    
+    const newForm = { ...form };
+    if (index === 0 && previewImages[0]?.type === 'image') {
+      newForm.image = null;
+    } else if (index === 0 && previewImages[0]?.type === 'video') {
+      newForm.video = null;
+    } else if (index === 1 && previewImages[1]?.type === 'video') {
+      newForm.video = null;
+    }
+    
+    setForm(newForm);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const applySuggestion = (suggestion) => {
+    const lowerSuggestion = suggestion.toLowerCase();
+    if (lowerSuggestion.includes('hewan')) {
+      setForm(prev => ({ ...prev, rescueType: 'penyelamatan_hewan' }));
+    } else if (lowerSuggestion.includes('air')) {
+      setForm(prev => ({ ...prev, rescueType: 'penyelamatan_air' }));
+    }
+    
+    setMLValidation(prev => ({
+      ...prev,
+      suggestions: prev.suggestions.filter(s => s !== suggestion)
+    }));
+  };
 
   const validateStep = useCallback((step) => {
     const newErrors = {};
-    const token = localStorage.getItem("token"); 
 
     if (step === 1) {
-      if (!token) {
-        if (!form.reporterInfo.name?.trim()) newErrors.reporterName = "Nama wajib diisi";
-        if (!form.reporterInfo.phone?.trim()) {
-          newErrors.reporterPhone = "Nomor telepon wajib diisi";
-        } else if (!validatePhone(form.reporterInfo.phone)) {
-          newErrors.reporterPhone = "Format nomor telepon tidak valid";
-        }
-        if (!form.reporterInfo.address?.trim()) newErrors.reporterAddress = "Alamat wajib diisi";
-        if (!form.reporterInfo.kelurahan?.trim()) newErrors.reporterKelurahan = "Kelurahan wajib diisi";
-        if (!form.reporterInfo.kecamatan?.trim()) newErrors.reporterKecamatan = "Kecamatan wajib diisi";
-      }
-    }
-
-    if (step === 2) {
-      if (!form.rescueType) newErrors.rescueType = "Jenis rescue wajib dipilih";
       if (!form.title.trim()) newErrors.title = "Judul laporan wajib diisi";
-      if (!form.description.trim()) {
-        newErrors.description = "Deskripsi kejadian wajib diisi";
-      } else if (form.description.trim().length < 20) {
-        newErrors.description = "Deskripsi terlalu singkat (minimal 20 karakter)";
+      if (!form.description.trim()) newErrors.description = "Deskripsi wajib diisi";
+      if (!form.rescueType) newErrors.rescueType = "Jenis rescue wajib dipilih";
+    } else if (step === 2) {
+      if (!form.location.address.trim()) {
+        newErrors.locationAddress = "Alamat lokasi wajib diisi atau klik pada peta.";
       }
-    }
-
-    if (step === 3) {
-      if (!form.location.address.trim() && (!form.location.latitude || !form.location.longitude)) {
-        newErrors.location = "Alamat lokasi wajib diisi";
-        newErrors.coordinates = "Atau pilih lokasi pada peta";
+    } else if (step === 3) {
+      if (!form.reporterInfo.name.trim()) newErrors.reporterName = "Nama pelapor wajib diisi";
+      if (!form.reporterInfo.phone.trim()) {
+        newErrors.reporterPhone = "Nomor telepon wajib diisi";
+      } else if (!validatePhone(form.reporterInfo.phone)) {
+        newErrors.reporterPhone = "Format nomor telepon tidak valid";
       }
-      if (form.location.address.trim() && (!form.location.latitude || !form.location.longitude)) {
-        newErrors.coordinates = "Koordinat belum dipilih pada peta. Harap klik pada peta.";
+      
+      const token = localStorage.getItem("token");
+      if (!token) {
+        if (!form.reporterInfo.kelurahan.trim()) newErrors.reporterKelurahan = "Kelurahan wajib diisi";
+        if (!form.reporterInfo.kecamatan.trim()) newErrors.reporterKecamatan = "Kecamatan wajib diisi";
       }
     }
 
@@ -313,159 +364,42 @@ export default function StandardFormPresenter() {
       });
     }
     if (name.startsWith("reporterInfo.")) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.reporterName;
-        delete newErrors.reporterPhone;
-        delete newErrors.reporterAddress;
-        delete newErrors.reporterKelurahan;
-        delete newErrors.reporterKecamatan;
-        return newErrors;
-      });
-    }
-    if (name.startsWith("location.")) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.location;
-        delete newErrors.coordinates;
-        return newErrors;
-      });
+      const reporterInfoField = name.split(".")[1];
+      if (errors[`reporter${reporterInfoField.charAt(0).toUpperCase() + reporterInfoField.slice(1)}`]) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[`reporter${reporterInfoField.charAt(0).toUpperCase() + reporterInfoField.slice(1)}`];
+          return newErrors;
+        });
+      }
     }
 
-    if (name === "description" || name === "rescueType") {
-      validateWithML(
-        name === "description" ? sanitizeInput(value) : form.description,
-        name === "rescueType" ? sanitizeInput(value) : form.rescueType
+    if (name === "title" || name === "description" || name === "rescueType") {
+      validateMLInput(
+        name === "title" ? value : form.title,
+        name === "description" ? value : form.description,
+        name === "rescueType" ? value : form.rescueType
       );
     }
   };
 
-  const handleLocationChange = useCallback(
-    async (lat, lng, addressFromMap = null) => {
-      setLocationLoading(true);
-      try {
-        let addressToSet = form.location.address;
-        if (addressFromMap !== null) {
-          addressToSet = addressFromMap;
-        } else if (lat && lng) {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-          );
-          const data = await response.json();
-          addressToSet = data.display_name || "Alamat tidak ditemukan";
-        }
-
-        setForm((prev) => ({
-          ...prev,
-          location: {
-            ...prev.location,
-            latitude: lat,
-            longitude: lng,
-            address: addressToSet,
-          },
-        }));
-
-        if (errors.location || errors.coordinates) {
-          setErrors((prev) => {
-            const newErrors = { ...prev };
-            delete newErrors.location;
-            delete newErrors.coordinates;
-            return newErrors;
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching address:", error);
-        alert("Gagal mendapatkan alamat dari koordinat.");
-        setForm((prev) => ({
-          ...prev,
-          location: {
-            ...prev.location,
-            latitude: lat,
-            longitude: lng,
-            address: form.location.address || "Gagal mendapatkan alamat", 
-          },
-        }));
-      } finally {
-        setLocationLoading(false);
-      }
-    },
-    [errors, form.location.address] 
-  );
-
-  const getCurrentLocation = () => {
-    setLocationLoading(true);
-
-    if (!navigator.geolocation) {
-      alert("Geolocation tidak didukung oleh browser ini");
-      setLocationLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        handleLocationChange(position.coords.latitude, position.coords.longitude);
-      },
-      (error) => {
-        let errorMessage = "Gagal mendapatkan lokasi: ";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += "Izin lokasi ditolak";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += "Informasi lokasi tidak tersedia";
-            break;
-          case error.TIMEOUT:
-            errorMessage += "Timeout mendapatkan lokasi";
-            break;
-          default:
-            errorMessage += "Error tidak diketahui";
-            break;
-        }
-        alert(errorMessage);
-        setLocationLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
-    );
-  };
-
-  const removeImage = (index) => {
-    if (previewImages[index] && previewImages[index].url.startsWith("blob:")) {
-      URL.revokeObjectURL(previewImages[index].url);
-    }
-
-    const updatedPreviews = previewImages.filter((_, i) => i !== index);
-    setPreviewImages(updatedPreviews);
-
-    let newImage = form.image;
-    let newVideo = form.video;
-
-    const removedFile = previewImages[index];
-    if (removedFile.type === 'image') {
-        newImage = null; 
-    } else if (removedFile.type === 'video') {
-        newVideo = null; 
-    }
-
+  const handleLocationChange = (address, latitude, longitude) => {
     setForm((prev) => ({
       ...prev,
-      image: newImage,
-      video: newVideo,
+      location: {
+        address: address || "",
+        latitude: latitude?.toString() || "",
+        longitude: longitude?.toString() || "",
+      },
     }));
 
-    if (updatedPreviews.length === 0 && fileInputRef.current) {
-        fileInputRef.current.value = "";
+    if (errors.locationAddress) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.locationAddress;
+        return newErrors;
+      });
     }
-  };
-
-  const applySuggestion = (suggestion) => {
-    setForm((prev) => ({
-      ...prev,
-      description: prev.description + (prev.description ? " " : "") + suggestion,
-    }));
   };
 
   const handleSubmit = async (e) => {
@@ -555,12 +489,29 @@ export default function StandardFormPresenter() {
       const response = await createReport(formData, headers);
 
       const reportId = response.report_id || "UNKNOWN";
+      
+      const whatsappMessage = createReportWhatsAppMessage({
+        reportId,
+        title: form.title,
+        rescueType: form.rescueType,
+        reporterName: form.reporterInfo.name,
+        phone: form.reporterInfo.phone,
+        location: form.location
+      }, 'biasa');
+
+      try {
+        sendWhatsAppMessage('082253217049', whatsappMessage);
+      } catch (waError) {
+        console.error('Error sending WhatsApp message:', waError);
+      }
+
       alert(
         `✅ Laporan rescue berhasil dikirim!\n\n` +
           `ID Laporan: ${reportId}\n` +
           `Mode: Standard Report\n` +
           `Jenis: ${form.rescueType}\n\n` +
-          `Tim Damkar akan segera menindaklanjuti. Simpan ID laporan untuk tracking.`
+          `Tim Damkar akan segera menindaklanjuti. Simpan ID laporan untuk tracking.\n\n` +
+          `📱 WhatsApp akan terbuka untuk konfirmasi laporan.`
       );
 
       setForm({

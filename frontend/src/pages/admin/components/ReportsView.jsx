@@ -126,15 +126,16 @@ const ReportsView = () => {
     fetchReports();
   }, [fetchReports]);
 
-  const getDisplayLocation = (report) => {
+    const getDisplayLocation = (report) => {
+    if (!report || !report.location) return 'Lokasi tidak tersedia';
     if (typeof report.location === 'object' && report.location.address) {
-      return report.location.address;
+        return report.location.address;
     }
     if (typeof report.location === 'string') {
-      return report.location;
+        return report.location;
     }
-    return 'N/A';
-  };
+    return 'Lokasi tidak tersedia';
+    };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -170,23 +171,23 @@ const ReportsView = () => {
     }
   };
 
-  const filteredReports = reportsList.filter(report => {
-    const displayLocation = getDisplayLocation(report);
+const filteredReports = reportsList.filter(report => {
+  const displayLocation = getDisplayLocation(report);
 
-    const matchesSearch =
-      report._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reporterInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reporterId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      displayLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.address?.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesSearch =
+    (report._id?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (report.title?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (report.description?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (report.reporterInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (report.reporterId?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (displayLocation.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (report.address?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesStatus =
-      statusFilter === 'all' || report.status?.toLowerCase() === statusFilter.toLowerCase();
+  const matchesStatus =
+    statusFilter === 'all' || report.status?.toLowerCase() === statusFilter.toLowerCase();
 
-    return matchesSearch && matchesStatus;
-  });
+  return matchesSearch && matchesStatus;
+});
 
   const handleViewDetail = (report) => {
     setSelectedReport(report);
@@ -392,7 +393,8 @@ const ReportsView = () => {
     [formErrors, reportForm.location.address] 
   );
 
-    const handleAddReportSubmit = async () => {
+    const handleAddReportSubmit = async (event) => {
+    event.preventDefault(); 
     if (!selectedReportType) return;
 
     setIsLoading(true);
@@ -422,10 +424,7 @@ const ReportsView = () => {
         },
         };
 
-        if (
-        locationData.coordinates.coordinates[0] === null &&
-        locationData.coordinates.coordinates[1] === null
-        ) {
+        if (locationData.coordinates.coordinates[0] === null && locationData.coordinates.coordinates[1] === null) {
         locationData.coordinates = null; 
         }
         formData.append("location", JSON.stringify(locationData));
@@ -448,7 +447,6 @@ const ReportsView = () => {
         const response = await createReport(formData, headers);
 
         if (response && response.status === 'success' && response.message === 'Laporan berhasil dibuat') {
-        setReportsList(prev => [...prev, response.data]);
         alert('Laporan berhasil ditambahkan!');
         setShowAddReportForm(false);
 
@@ -483,7 +481,8 @@ const ReportsView = () => {
         setFormErrors({});
         if (fileInputRef.current) fileInputRef.current.value = "";
         if (videoInputRef.current) videoInputRef.current.value = "";
-        fetchReports(); 
+
+        fetchReports();
         } else {
         fetchReports();
         }
@@ -1381,7 +1380,15 @@ const ReportsView = () => {
                       <div>
                         <label className="block text-xs font-medium text-red-700 mb-1">Jenis Kejadian</label>
                         <p className="text-sm text-red-900">
-                          {selectedReport.incidentType || 'Kebakaran'}
+                        {selectedReport.category === 'evakuasi_penyelamatan_hewan'
+                            ? 'Evakuasi/Penyelamatan Hewan'
+                            : selectedReport.category === 'kebakaran'
+                            ? 'Kebakaran'
+                            : selectedReport.category === 'layanan_lingkungan_dan_fasilitas_umum'
+                            ? 'Layanan Lingkungan & Fasilitas Umum'
+                            : selectedReport.category === 'penyelamatan_non_hewan_dan_bantuan_teknis'
+                            ? 'Penyelamatan Non Hewan & Bantuan Teknis'
+                            : 'Kebakaran'}
                         </p>
                       </div>
                       
@@ -1486,6 +1493,7 @@ const ReportsView = () => {
             <div className="sticky bottom-0 bg-white border-t p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between gap-3">
                 <div className="flex flex-col sm:flex-row gap-2">
+
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
