@@ -362,15 +362,6 @@ const getDisplayLocation = (report) => {
             </div>
           )}
         </div>
-
-        {/* View All Button */}
-        {reportsList.length > 0 && (
-          <div className="mt-4 sm:mt-6 pt-4 border-t">
-            <button className="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium">
-              Lihat Semua Laporan
-            </button>
-          </div>
-        )}
       </div>
 
 
@@ -643,44 +634,6 @@ const getDisplayLocation = (report) => {
           </div>
         </div>
       )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <div className="p-2 bg-blue-100 rounded-lg mr-3">
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <h4 className="font-medium text-gray-900">Laporan Hari Ini</h4>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">
-            {((stats?.pendingReports || 0) + 3)}
-          </p>
-          <p className="text-xs sm:text-sm text-gray-500">+2 dari kemarin</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <div className="p-2 bg-green-100 rounded-lg mr-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <h4 className="font-medium text-gray-900">Response Rate</h4>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">94%</p>
-          <p className="text-xs sm:text-sm text-gray-500">Rata-rata respon</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border sm:col-span-2 lg:col-span-1">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <div className="p-2 bg-yellow-100 rounded-lg mr-3">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <h4 className="font-medium text-gray-900">Avg Response Time</h4>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-yellow-600 mb-2">8 min</p>
-          <p className="text-xs sm:text-sm text-gray-500">Target: 10 menit</p>
-        </div>
-      </div>
     </div>
   );
 };
