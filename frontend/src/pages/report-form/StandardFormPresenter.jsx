@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { createReport, getUserDetail } from "../../services/api"; 
+import { createReport, getUserDetail, predictedCategory } from "../../services/api";
 import { sendWhatsAppMessage, createReportWhatsAppMessage } from "../../services/whatsappservice";
 import StandardForm from "./StandardForm";
 
@@ -12,13 +12,12 @@ export default function StandardFormPresenter() {
     description: "",
     location: {
       address: "",
-      latitude: "", 
+      latitude: "",
       longitude: "",
     },
     image: null,
-    video: null, 
-    rescueType: "",
-    additionalInfo: "", 
+    video: null,
+    additionalInfo: "",
     reporterInfo: {
       name: "",
       phone: "",
@@ -28,10 +27,12 @@ export default function StandardFormPresenter() {
       kelurahan: "",
       kecamatan: "",
     },
+    category: null,
+    predictResult: null, 
   });
 
   const [mlValidation, setMLValidation] = useState(null);
-  const [previewImages, setPreviewImages] = useState([]); 
+  const [previewImages, setPreviewImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [validationTimeout, setValidationTimeout] = useState(null);
@@ -51,7 +52,7 @@ export default function StandardFormPresenter() {
     return file.size <= maxSize;
   };
 
- const validateFileType = (file) => {
+  const validateFileType = (file) => {
     const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
     const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
     return allowedImageTypes.includes(file.type) || allowedVideoTypes.includes(file.type);
@@ -61,10 +62,42 @@ export default function StandardFormPresenter() {
     return input
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/<[^>]*>/g, "")
-      .trim();
   };
 
   useEffect(() => {
+    const fetchAndSetUserData = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const user = localStorage.getItem("user");
+          const userDataFromLocalStorage = JSON.parse(user);
+          const userId = userDataFromLocalStorage.userId;
+
+          const responseData = await getUserDetail(userId);
+          const userProfile = responseData.user;
+
+          setForm((prevForm) => ({
+            ...prevForm,
+            reporterInfo: {
+              name: userProfile.name || "",
+              phone: userProfile.phone || "",
+              address: userProfile.address || "",
+              rt: userProfile.rt || "",
+              rw: userProfile.rw || "",
+              kelurahan: userProfile.kelurahan || "",
+              kecamatan: userProfile.kecamatan || "",
+            },
+          }));
+        } catch (error) {
+          console.error("Error fetching user data for form defaults:", error);
+          setUserDataError(
+            `Gagal memuat data profil: ${error.message || "Terjadi kesalahan."}`
+          );
+        }
+      }
+    };
+    fetchAndSetUserData();
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -74,158 +107,108 @@ export default function StandardFormPresenter() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      previewImages.forEach(p => URL.revokeObjectURL(p.url));
+      clearTimeout(validationTimeout);
     };
-  }, []);
+  }, [previewImages, validationTimeout]);
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const userData = await getUserDetail("me");
-          if (userData && userData.data) {
-            setForm((prev) => ({
-              ...prev,
-              reporterInfo: {
-                name: userData.data.name || "",
-                phone: userData.data.phone || "",
-                address: userData.data.address || "",
-                rt: userData.data.rt || "",
-                rw: userData.data.rw || "",
-                kelurahan: userData.data.kelurahan || "",
-                kecamatan: userData.data.kecamatan || "",
-              },
-            }));
-          }
-        } catch (err) {
-          console.error("Error loading user data:", err);
-          setUserDataError("Gagal memuat data pengguna. Silakan isi manual.");
-        }
-      }
-    };
-
-    loadUserData();
-  }, []);
-
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation tidak didukung di browser ini.");
-      return;
-    }
-
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setForm((prev) => ({
-          ...prev,
-          location: {
-            ...prev.location,
-            latitude: latitude.toString(),
-            longitude: longitude.toString(),
-          },
-        }));
-
-        fetch(
-          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`
-        )
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.results && data.results.length > 0) {
-              const address = data.results[0].formatted;
-              setForm((prev) => ({
-                ...prev,
-                location: {
-                  ...prev.location,
-                  address: address,
-                },
-              }));
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching address:", error);
-          })
-          .finally(() => {
-            setLocationLoading(false);
-          });
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        alert("Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan akses lokasi.");
-        setLocationLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
-    );
-  };
-
-  const validateMLInput = useCallback((title, description, type) => {
+  const validateMLInput = useCallback((title, description) => { 
     if (validationTimeout) {
       clearTimeout(validationTimeout);
     }
 
-    const timeout = setTimeout(() => {
-      const combinedText = `${title} ${description}`.toLowerCase();
-      const rescueType = type.toLowerCase();
-      
-      let confidence = 70;
-      let suggestions = [];
-      let isCorrectCategory = true;
+    if (!title && !description) {
+      setMLValidation(null);
+      setForm(prev => ({ ...prev, category: null, predictResult: null }));
+      return;
+    }
 
-      const rescueKeywords = ['selamat', 'tolong', 'bantuan', 'terjebak', 'tenggelam', 'jatuh', 'terjepit'];
-      const hasRescueKeywords = rescueKeywords.some(keyword => combinedText.includes(keyword));
+    const timeout = setTimeout(async () => {
+      try {
+        const result = await predictedCategory(title, description);
 
-      if (!hasRescueKeywords && combinedText.length > 0) {
-        suggestions.push('Pastikan ini adalah laporan penyelamatan/rescue');
-        confidence = 60;
-        isCorrectCategory = false;
-      } else if (hasRescueKeywords) {
-        confidence = 85;
+        if (result.status === "success" && result.predictResult) {
+          const mlResult = result.predictResult;
+          const predictedCategoryName = mlResult.category;
+          const predictedScore = mlResult.score || 0;
+          let suggestions = [];
+
+          if (predictedCategoryName === "kebakaran") {
+            suggestions.push("Laporan ini terindikasi *kebakaran* oleh AI. Harap gunakan 'Laporan Darurat' untuk kasus kebakaran.");
+          } else if (!predictedCategoryName.includes("penyelamatan") && !predictedCategoryName.includes("lingkungan")) {
+            suggestions.push(`AI memprediksi: "${predictedCategoryName.replace(/_/g, ' ')}" (Skor: ${(predictedScore * 100).toFixed(2)}%). Pastikan deskripsi Anda sudah jelas untuk laporan rescue.`);
+          }
+
+          setMLValidation({
+            isRescue: predictedCategoryName !== "kebakaran",
+            confidence: predictedScore,
+            suggestions: suggestions,
+            message: `Prediksi kategori: ${predictedCategoryName ? predictedCategoryName.replace(/_/g, ' ') : 'Tidak diketahui'} (Skor: ${(predictedScore * 100).toFixed(2)}%)`,
+          });
+
+          setForm((prev) => ({
+            ...prev,
+            category: predictedCategoryName, 
+            predictResult: mlResult, 
+          }));
+        } else {
+          setMLValidation({
+            isRescue: false,
+            confidence: 0,
+            suggestions: [],
+            message: result.message || "Gagal memvalidasi kategori laporan dari backend. Silakan coba lagi.",
+          });
+          setForm((prev) => ({
+            ...prev,
+            category: null,
+            predictResult: { status: "error", message: result.message || "Prediction failed from backend" },
+          }));
+        }
+      } catch (error) {
+        console.error("Error dalam prediksi kategori dari backend:", error);
+        setMLValidation({
+          isRescue: false,
+          confidence: 0,
+          suggestions: [],
+          message: "Gagal memvalidasi kategori laporan. Terjadi kesalahan saat menghubungi backend.",
+        });
+        setForm((prev) => ({
+          ...prev,
+          category: null,
+          predictResult: { status: "error", message: "System error calling backend for prediction" },
+        }));
       }
-
-      if ((combinedText.includes('hewan') || combinedText.includes('kucing') || combinedText.includes('anjing')) && !rescueType.includes('hewan') && !rescueType.includes('kucing')) {
-        suggestions.push('Sepertinya terkait penyelamatan hewan');
-        confidence = 80;
-      } else if ((combinedText.includes('air') || combinedText.includes('sungai') || combinedText.includes('kolam')) && rescueType !== 'penyelamatan_air') {
-        suggestions.push('Mungkin penyelamatan dari air?');
-        confidence = 82;
-      }
-
-      if (combinedText.includes('darurat') || combinedText.includes('segera') || combinedText.includes('urgent')) {
-        suggestions.push('Prioritas tinggi terdeteksi');
-        confidence += 5;
-      }
-
-      setMLValidation({
-        isRescue: isCorrectCategory,
-        confidence: Math.min(confidence, 95),
-        suggestions,
-        message: isCorrectCategory
-          ? `Laporan rescue tervalidasi (${confidence}% confidence)`
-          : `Mungkin bukan laporan rescue (${confidence}% confidence)`
-      });
-    }, 1000);
+    }, 3000);
 
     setValidationTimeout(timeout);
-  }, [validationTimeout]);
+  }, [validationTimeout]); 
 
-  const removeImage = (index) => {
-    setPreviewImages(prev => prev.filter((_, i) => i !== index));
-    
-    const newForm = { ...form };
-    if (index === 0 && previewImages[0]?.type === 'image') {
-      newForm.image = null;
-    } else if (index === 0 && previewImages[0]?.type === 'video') {
-      newForm.video = null;
-    } else if (index === 1 && previewImages[1]?.type === 'video') {
-      newForm.video = null;
-    }
-    
-    setForm(newForm);
-    
+  const removeImage = (indexToRemove) => {
+    setPreviewImages(prev => {
+      const newPreviews = prev.filter((_, i) => i !== indexToRemove);
+      if (prev[indexToRemove] && prev[indexToRemove].url) {
+        URL.revokeObjectURL(prev[indexToRemove].url);
+      }
+      return newPreviews;
+    });
+
+    setForm(prev => {
+        const newForm = { ...prev };
+        const updatedPreviews = previewImages.filter((_, i) => i !== indexToRemove);
+
+        if (updatedPreviews.some(p => p.type === 'image')) {
+            newForm.image = updatedPreviews.find(p => p.type === 'image')?.file || null;
+            newForm.video = null; 
+        } else if (updatedPreviews.some(p => p.type === 'video')) {
+            newForm.video = updatedPreviews.find(p => p.type === 'video')?.file || null;
+            newForm.image = null; 
+        } else {
+            newForm.image = null;
+            newForm.video = null;
+        }
+        return newForm;
+    });
+
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -233,12 +216,10 @@ export default function StandardFormPresenter() {
 
   const applySuggestion = (suggestion) => {
     const lowerSuggestion = suggestion.toLowerCase();
-    if (lowerSuggestion.includes('hewan')) {
-      setForm(prev => ({ ...prev, rescueType: 'penyelamatan_hewan' }));
-    } else if (lowerSuggestion.includes('air')) {
-      setForm(prev => ({ ...prev, rescueType: 'penyelamatan_air' }));
+    if (lowerSuggestion.includes('kebakaran')) {
+        alert("Laporan ini terindikasi kebakaran. Silakan buat 'Laporan Darurat' untuk kasus kebakaran.");
     }
-    
+
     setMLValidation(prev => ({
       ...prev,
       suggestions: prev.suggestions.filter(s => s !== suggestion)
@@ -247,44 +228,60 @@ export default function StandardFormPresenter() {
 
   const validateStep = useCallback((step) => {
     const newErrors = {};
+    const token = localStorage.getItem("token");
 
     if (step === 1) {
-      if (!form.title.trim()) newErrors.title = "Judul laporan wajib diisi";
-      if (!form.description.trim()) newErrors.description = "Deskripsi wajib diisi";
-      if (!form.rescueType) newErrors.rescueType = "Jenis rescue wajib dipilih";
-    } else if (step === 2) {
-      if (!form.location.address.trim()) {
-        newErrors.locationAddress = "Alamat lokasi wajib diisi atau klik pada peta.";
-      }
-    } else if (step === 3) {
-      if (!form.reporterInfo.name.trim()) newErrors.reporterName = "Nama pelapor wajib diisi";
-      if (!form.reporterInfo.phone.trim()) {
-        newErrors.reporterPhone = "Nomor telepon wajib diisi";
-      } else if (!validatePhone(form.reporterInfo.phone)) {
-        newErrors.reporterPhone = "Format nomor telepon tidak valid";
-      }
-      
-      const token = localStorage.getItem("token");
       if (!token) {
-        if (!form.reporterInfo.kelurahan.trim()) newErrors.reporterKelurahan = "Kelurahan wajib diisi";
-        if (!form.reporterInfo.kecamatan.trim()) newErrors.reporterKecamatan = "Kecamatan wajib diisi";
+        if (!form.reporterInfo.name?.trim()) newErrors.reporterName = "Nama wajib diisi";
+        if (!form.reporterInfo.phone?.trim()) {
+          newErrors.reporterPhone = "Nomor telepon wajib diisi";
+        } else if (!validatePhone(form.reporterInfo.phone)) {
+          newErrors.reporterPhone = "Format nomor telepon tidak valid";
+        }
+        if (!form.reporterInfo.address?.trim()) newErrors.reporterAddress = "Alamat wajib diisi";
+        if (!form.reporterInfo.kelurahan?.trim()) newErrors.reporterKelurahan = "Kelurahan wajib diisi";
+        if (!form.reporterInfo.kecamatan?.trim()) newErrors.reporterKecamatan = "Kecamatan wajib diisi";
+      }
+    }
+    if (step === 2) {
+      if (!form.title.trim()) newErrors.title = "Judul laporan wajib diisi";
+      if (!form.description.trim()) {
+        newErrors.description = "Deskripsi kejadian wajib diisi";
+      } else if (form.description.trim().length < 20) {
+        newErrors.description = "Deskripsi terlalu singkat (minimal 20 karakter)";
+      }
+      if ((form.title.trim() || form.description.trim()) && !form.category) {
+        newErrors.category = "Sistem sedang memprediksi kategori. Harap tunggu atau perbaiki judul/deskripsi.";
+      }
+      if (form.category === "kebakaran") {
+        newErrors.category = "Laporan ini terindikasi kebakaran. Harap buat Laporan Darurat.";
+      }
+    }
+    if (step === 3) {
+      if (!form.location.address.trim() && (!form.location.latitude || !form.location.longitude)) {
+        newErrors.location = "Alamat lokasi wajib diisi";
+        newErrors.coordinates = "Atau pilih lokasi pada peta";
+      }
+      if (form.location.address.trim() && (!form.location.latitude || !form.location.longitude)) {
+        newErrors.coordinates = "Koordinat belum dipilih pada peta. Harap klik pada peta.";
       }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [form, validatePhone]); 
+  }, [form, validatePhone]);
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
 
-    if (name === "mediaUpload" && files) { 
+    if (name === "mediaUpload" && files) {
       const selectedFiles = Array.from(files);
-      if (selectedFiles.length > 2) { 
+      if (selectedFiles.length > 2) {
         alert("Anda hanya dapat mengunggah maksimal satu gambar dan satu video.");
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
+        previewImages.forEach(p => URL.revokeObjectURL(p.url));
         setPreviewImages([]);
         setForm(prev => ({ ...prev, image: null, video: null }));
         return;
@@ -307,10 +304,10 @@ export default function StandardFormPresenter() {
 
         if (file.type.startsWith("image/")) {
           newImage = file;
-          newPreviews.push({ type: 'image', url: URL.createObjectURL(file), name: file.name });
+          newPreviews.push({ type: 'image', url: URL.createObjectURL(file), name: file.name, file: file });
         } else if (file.type.startsWith("video/")) {
           newVideo = file;
-          newPreviews.push({ type: 'video', url: URL.createObjectURL(file), name: file.name });
+          newPreviews.push({ type: 'video', url: URL.createObjectURL(file), name: file.name, file: file });
         }
       });
 
@@ -319,12 +316,13 @@ export default function StandardFormPresenter() {
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
+        previewImages.forEach(p => URL.revokeObjectURL(p.url));
         setPreviewImages([]);
         setForm(prev => ({ ...prev, image: null, video: null }));
         return;
       }
 
-      setPreviewImages(newPreviews); 
+      setPreviewImages(newPreviews);
       setForm((prev) => ({
         ...prev,
         image: newImage,
@@ -374,32 +372,103 @@ export default function StandardFormPresenter() {
       }
     }
 
-    if (name === "title" || name === "description" || name === "rescueType") {
-      validateMLInput(
-        name === "title" ? value : form.title,
-        name === "description" ? value : form.description,
-        name === "rescueType" ? value : form.rescueType
-      );
+    if (name === "title" || name === "description") {
+      const currentTitle = name === "title" ? sanitizeInput(value) : form.title;
+      const currentDescription = name === "description" ? sanitizeInput(value) : form.description;
+      validateMLInput(currentTitle, currentDescription);
     }
   };
 
-  const handleLocationChange = (address, latitude, longitude) => {
-    setForm((prev) => ({
-      ...prev,
-      location: {
-        address: address || "",
-        latitude: latitude?.toString() || "",
-        longitude: longitude?.toString() || "",
-      },
-    }));
+  const handleLocationChange = useCallback(
+    async (lat, lng, addressFromMap = null) => {
+      setLocationLoading(true);
+      try {
+        let addressToSet = form.location.address;
+        if (addressFromMap !== null) {
+          addressToSet = addressFromMap;
+        } else if (lat && lng) {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+          );
+          const data = await response.json();
+          addressToSet = data.display_name || "Alamat tidak ditemukan";
+        }
 
-    if (errors.locationAddress) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.locationAddress;
-        return newErrors;
-      });
+        setForm((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            latitude: lat,
+            longitude: lng,
+            address: addressToSet,
+          },
+        }));
+
+        if (errors.location || errors.coordinates) {
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.location;
+            delete newErrors.coordinates;
+            return newErrors;
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching address:", error);
+        alert("Gagal mendapatkan alamat dari koordinat.");
+        setForm((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            latitude: lat,
+            longitude: lng,
+            address: form.location.address || "Gagal mendapatkan alamat",
+          },
+        }));
+      } finally {
+        setLocationLoading(false);
+      }
+    },
+    [errors, form.location.address]
+  );
+
+  const getCurrentLocation = () => {
+    setLocationLoading(true);
+
+    if (!navigator.geolocation) {
+      alert("Geolocation tidak didukung oleh browser ini");
+      setLocationLoading(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleLocationChange(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        let errorMessage = "Gagal mendapatkan lokasi: ";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += "Izin lokasi ditolak";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += "Informasi lokasi tidak tersedia";
+            break;
+          case error.TIMEOUT:
+            errorMessage += "Timeout mendapatkan lokasi";
+            break;
+          default:
+            errorMessage += "Error tidak diketahui";
+            break;
+        }
+        alert(errorMessage);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -412,6 +481,17 @@ export default function StandardFormPresenter() {
         firstErrorElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       return;
+    }
+
+    if (form.category === "kebakaran") {
+        alert("Laporan ini terindikasi kebakaran oleh AI. Harap buat 'Laporan Darurat' untuk kasus kebakaran.");
+        setIsSubmitting(false);
+        return;
+    }
+    if ((form.title.trim() || form.description.trim()) && !form.category) {
+        alert("Sistem masih memproses prediksi kategori. Harap tunggu sebentar.");
+        setIsSubmitting(false);
+        return;
     }
 
     if (!isOnline) {
@@ -428,6 +508,13 @@ export default function StandardFormPresenter() {
       formData.append("description", form.description);
       formData.append("reportType", "biasa"); 
 
+      formData.append("rescueType", form.category || ""); 
+      formData.append("category", form.category || "");
+
+      if (form.predictResult) {
+        formData.append("predictResult", JSON.stringify(form.predictResult));
+      }
+
       const locationData = {
         address: form.location.address,
         coordinates: {
@@ -439,11 +526,10 @@ export default function StandardFormPresenter() {
         },
       };
       if (locationData.coordinates.coordinates[0] === null || locationData.coordinates.coordinates[1] === null) {
-          locationData.coordinates = null;
+        locationData.coordinates = null;
       }
       formData.append("location", JSON.stringify(locationData));
 
-      formData.append("rescueType", form.rescueType);
       if (form.additionalInfo) formData.append("additionalInfo", form.additionalInfo);
 
       if (form.image) formData.append("image", form.image);
@@ -459,8 +545,7 @@ export default function StandardFormPresenter() {
         formData.append("kelurahan", form.reporterInfo.kelurahan || "");
         formData.append("kecamatan", form.reporterInfo.kecamatan || "");
       } else {
-
-        formData.append("name", form.reporterInfo.name); 
+        formData.append("name", form.reporterInfo.name);
         formData.append("phone", form.reporterInfo.phone);
         formData.append("address", form.reporterInfo.address || "");
         formData.append("rt", form.reporterInfo.rt || "");
@@ -472,31 +557,46 @@ export default function StandardFormPresenter() {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       for (let pair of formData.entries()) {
-          if (pair[0] === "image" || pair[0] === "video") {
-              console.log(pair[0], ":", pair[1].name);
-          } else if (pair[0] === "location") {
-              try {
-                  console.log(pair[0], ":", JSON.parse(pair[1]));
-              } catch (e) {
-                  console.log(pair[0], ":", pair[1]);
-              }
+        if (pair[0] === "image" || pair[0] === "video") {
+          console.log(pair[0], ":", pair[1].name);
+        } else if (pair[0] === "location" || pair[0] === "predictResult") {
+          try {
+            console.log(pair[0], ":", JSON.parse(pair[1]));
+          } catch (e) {
+            console.log(pair[0], ":", pair[1]);
           }
-          else {
-              console.log(pair[0], ":", pair[1]);
-          }
+        }
+        else {
+          console.log(pair[0], ":", pair[1]);
+        }
       }
 
       const response = await createReport(formData, headers);
 
       const reportId = response.report_id || "UNKNOWN";
-      
+
+      const whatsappLocation = {
+        address: form.location.address,
+        coordinates: {
+          type: "Point",
+          coordinates: [
+            form.location.longitude ? parseFloat(form.location.longitude) : null,
+            form.location.latitude ? parseFloat(form.location.latitude) : null,
+          ],
+        },
+      };
+
+      if (whatsappLocation.coordinates.coordinates[0] === null || whatsappLocation.coordinates.coordinates[1] === null || isNaN(whatsappLocation.coordinates.coordinates[0]) || isNaN(whatsappLocation.coordinates.coordinates[1])) {
+        whatsappLocation.coordinates = null;
+      }
+
       const whatsappMessage = createReportWhatsAppMessage({
         reportId,
         title: form.title,
-        rescueType: form.rescueType,
+        description: form.description,
+        rescueType: form.category ? form.category.replace(/_/g, ' ') : 'Tidak Diketahui',
         reporterName: form.reporterInfo.name,
-        phone: form.reporterInfo.phone,
-        location: form.location
+        location: whatsappLocation,
       }, 'biasa');
 
       try {
@@ -507,11 +607,11 @@ export default function StandardFormPresenter() {
 
       alert(
         `✅ Laporan rescue berhasil dikirim!\n\n` +
-          `ID Laporan: ${reportId}\n` +
-          `Mode: Standard Report\n` +
-          `Jenis: ${form.rescueType}\n\n` +
-          `Tim Damkar akan segera menindaklanjuti. Simpan ID laporan untuk tracking.\n\n` +
-          `📱 WhatsApp akan terbuka untuk konfirmasi laporan.`
+        `ID Laporan: ${reportId}\n` +
+        `Mode: Standard Report\n` +
+        `Jenis: ${form.category ? form.category.replace(/_/g, ' ') : 'Tidak Diketahui'}\n\n` +
+        `Tim Damkar akan segera menindaklanjuti. Simpan ID laporan untuk tracking.\n\n` +
+        `📱 WhatsApp akan terbuka untuk konfirmasi laporan.`
       );
 
       setForm({
@@ -522,9 +622,8 @@ export default function StandardFormPresenter() {
           latitude: "",
           longitude: "",
         },
-        images: [],
+        image: null,
         video: null,
-        rescueType: "",
         additionalInfo: "",
         reporterInfo: {
           name: "",
@@ -535,17 +634,20 @@ export default function StandardFormPresenter() {
           kelurahan: "",
           kecamatan: "",
         },
+        category: null,
+        predictResult: null,
       });
+      previewImages.forEach(p => URL.revokeObjectURL(p.url));
       setPreviewImages([]);
       setMLValidation(null);
-      setCurrentStep(1); 
+      setCurrentStep(1);
       setErrors({});
       setUserDataError(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""; 
+        fileInputRef.current.value = "";
       }
 
-      navigate("/"); 
+      navigate("/");
     } catch (err) {
       console.error("Error submitting standard report:", err);
 
@@ -576,10 +678,10 @@ export default function StandardFormPresenter() {
     if (validateStep(currentStep)) {
       setCurrentStep(currentStep + 1);
     } else {
-        const firstErrorElement = document.querySelector(".border-red-500");
-        if (firstErrorElement) {
-            firstErrorElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
+      const firstErrorElement = document.querySelector(".border-red-500");
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
   };
 
@@ -600,7 +702,7 @@ export default function StandardFormPresenter() {
     fileInputRef,
     onInputChange: handleInputChange,
     onLocationChange: handleLocationChange,
-    onSubmit: handleSubmit, 
+    onSubmit: handleSubmit,
     getCurrentLocation: getCurrentLocation,
     removeImage: removeImage,
     applySuggestion: applySuggestion,

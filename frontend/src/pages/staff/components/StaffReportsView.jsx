@@ -50,7 +50,6 @@ const fireTypes = [
 
 const rescueTypes = [
   { value: 'evakuasi_penyelamatan_hewan', label: 'Evakuasi/Penyelamatan Hewan' },
-  { value: 'kebakaran', label: 'Kebakaran' },
   { value: 'layanan_lingkungan_dan_fasilitas_umum', label: 'Layanan Lingkungan & Fasilitas Umum' },
   { value: 'penyelamatan_non_hewan_dan_bantuan_teknis', label: 'Penyelamatan Non Hewan & Bantuan Teknis' },
 ];

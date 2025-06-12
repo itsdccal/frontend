@@ -200,5 +200,16 @@ export const updateStaffPassword = async (id, newPassword, confirmPassword) => {
   }
 };
 
+export const predictedCategory = async (title, description) => {
+  try {
+    const response = await api.post("/reports/predicted-category", {
+      title,
+      description,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
 
 export default api;

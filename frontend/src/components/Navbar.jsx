@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, FileText, ChevronDown, Flame, Shield, X, Menu, User, ClipboardList, LogOut, Settings } from "lucide-react";
+import { FileText, ChevronDown, Flame, Shield, X, Menu, User, ClipboardList, LogOut, Settings } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 function Navbar() {
@@ -82,12 +82,6 @@ function Navbar() {
               className="hover:text-red-200 transition-colors duration-200"
             >
               TENTANG LAPOR
-            </Link>
-            <Link
-              to="/statistics"
-              className="hover:text-red-200 transition-colors duration-200"
-            >
-              STATISTIK
             </Link>
 
             {(!isLoggedIn || user.role === "pelapor") && (
@@ -191,7 +185,6 @@ function Navbar() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <Search className="w-5 h-5 cursor-pointer hover:text-red-200 transition-colors duration-200 hidden sm:block" />
 
           <div className="hidden md:flex items-center space-x-4">
             {isLoggedIn ? (
@@ -292,13 +285,6 @@ function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               TENTANG LAPOR
-            </Link>
-            <Link
-              to="/statistics"
-              className="block hover:text-red-200 transition-colors duration-200"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              STATISTIK
             </Link>
 
             {isLoggedIn && (

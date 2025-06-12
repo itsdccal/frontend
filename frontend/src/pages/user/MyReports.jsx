@@ -356,7 +356,7 @@ const MyReports = () => {
                   <p><span className="font-semibold">Status:</span> {getStatusBadge(selectedReport.status)}</p>
                   <p><span className="font-semibold">Tingkat Urgensi:</span> {getUrgencyBadge(selectedReport.urgencyLevel)}</p>
                   <p><span className="font-semibold">Jenis Laporan:</span> {selectedReport.reportType}</p>
-                  <p><span className="font-semibold">Kategori:</span> {selectedReport.category}</p>
+                  <p><span className="font-semibold">Kategori:</span> {selectedReport.category.replace(/_/g, ' ') }</p>
                 </div>
                 <div>
                   <p><span className="font-semibold">Dibuat Pada:</span> {formatDate(selectedReport.createdAt)}</p>

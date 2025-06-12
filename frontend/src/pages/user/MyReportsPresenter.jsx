@@ -42,7 +42,7 @@ export const myReportsPresenter = () => {
         if (userReports.length > 0) {
           console.log("Successfully fetched and filtered reports for current user:", userReports);
         } else {
-          console.log("No reports found for the current user (ID:", reporterId, "). All reports fetched from API:", apiResponse.listReport);
+          console.log("No reports found for the current user (ID:", reporterId, ")");
         }
       } else {
         setReports([]);
