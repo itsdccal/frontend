@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import PrivateRoute from "./routes/PrivateRoute";
 import Navbar from "./components/Navbar";
 import Login from "./pages/auth/login/LoginPresenter";
