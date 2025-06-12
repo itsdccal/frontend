@@ -8,6 +8,7 @@ const Homepage = () => {
   const [location, setLocation] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleEmergencyCall = () => {
     setShowEmergencyModal(true);
@@ -35,7 +36,7 @@ const Homepage = () => {
 
   const handleConfirmCall = () => {
     setCurrentStep(3);
-    window.location.href = 'tel:113';
+    window.location.href = 'tel:6282253217049';
     setTimeout(() => {
       setShowEmergencyModal(false);
       navigate('/reports/quick');
@@ -249,7 +250,6 @@ const Homepage = () => {
         </section>
       </div>
 
-      {/* Emergency Modal */}
       {showEmergencyModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-scale-in">
@@ -284,7 +284,7 @@ const Homepage = () => {
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <p className="text-red-800 text-sm mb-3">
                         Anda akan dihubungkan ke <strong>113</strong> untuk bantuan darurat.
-                        {location && " Lokasi GPS akan dibagikan kepada petugas."}
+                        {location && " Berikan lokasi GPS kepada petugas saat ditanya."}
                       </p>
                       <p className="text-red-700 text-xs">
                         Setelah panggilan selesai, Anda akan diarahkan untuk mengisi quick report.
@@ -332,7 +332,6 @@ const Homepage = () => {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       {selectedOption && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl animate-scale-in">
