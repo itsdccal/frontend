@@ -29,7 +29,6 @@ const MyReports = () => {
     setStatusFilter,
     typeFilter,
     setTypeFilter,
-    handleCancelReport,
     error,
     refreshReports
   } = myReportsPresenter();
@@ -270,15 +269,6 @@ const MyReports = () => {
                             <Eye className="w-4 h-4 mr-1" />
                             Detail
                           </button>
-                          {report.status === 'pending' && (
-                            <button
-                              className="flex items-center justify-center px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
-                              onClick={() => handleCancelReport(report._id)}
-                            >
-                              <AlertCircle className="w-4 h-4 mr-1" />
-                              Batalkan
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>

@@ -29,11 +29,11 @@ export const myReportsPresenter = () => {
 
       if (apiResponse && Array.isArray(apiResponse.listReport)) {
         const userReports = apiResponse.listReport.filter(report => {
-          const reportReporterId = report.reporterId && typeof report.reporterId === 'object' 
-                                  ? report.reporterId.toString() 
-                                  : report.reporterId;
+          const reportReporterId = report.reporterId && report.reporterId._id
+                                    ? report.reporterId._id
+                                    : null;
           
-          return reportReporterId === reporterId;
+          return reportReporterId === reporterId;  
         });
 
         setReports(userReports); 
@@ -85,20 +85,6 @@ export const myReportsPresenter = () => {
     setFilteredReports(currentFiltered);
   }, [searchTerm, statusFilter, typeFilter, reports]);
 
-  const handleCancelReport = async (reportId) => {
-    if (confirm('Apakah Anda yakin ingin membatalkan laporan ini?')) {
-      try {
-        // Implementasi cancel report jika ada endpoint
-        // await cancelReportService(reportId); 
-        fetchReports(); 
-        alert('Laporan berhasil dibatalkan');
-      } catch (err) {
-        setError('Gagal membatalkan laporan. Silakan coba lagi.');
-        console.error('Error cancelling report:', err);
-      }
-    }
-  };
-
   return {
     filteredReports,
     loading,
@@ -108,7 +94,6 @@ export const myReportsPresenter = () => {
     setStatusFilter,
     typeFilter,
     setTypeFilter,
-    handleCancelReport,
     error,
     refreshReports: fetchReports
   };

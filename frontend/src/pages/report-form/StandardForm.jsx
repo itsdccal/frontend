@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Shield, ArrowLeft, MapPin, Users, Camera, CheckCircle, AlertTriangle, Upload, FileText, X, AlertCircle } from 'lucide-react';

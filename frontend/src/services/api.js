@@ -99,7 +99,7 @@ export const changePassword = async (id, data) => {
 
 export const updateReportStatus = async (id, statusData) => {
   try {
-    const response = await api.put(`/reports/${id}/status`, statusData);
+    const response = await api.put(`/reports/${id}`, statusData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -112,6 +112,70 @@ export const deleteReport = async (id) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
+  }
+};
+
+export const deleteUser = async (id) => {
+  try {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const addStaff = async (staffData, token = null) => {
+  try {
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '', 
+      },
+    };
+
+    const response = await api.post('/staff', staffData, config);
+
+    return response.data; 
+  } catch (error) {
+    throw error.response?.data || error; 
+  }
+};
+
+export const updateStaff = async (id, staffData, token) => {
+  try {
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`, 
+      },
+    };
+
+    const response = await api.put(`/staff/${id}`, staffData, config);
+
+    return response.data; 
+  } catch (error) {
+    throw error.response?.data || error; 
+  }
+};
+
+export const deleteStaff = async (id, token) => {
+  try {
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    const response = await api.delete(`/staff/${id}`, config);
+
+    if (response && response.data) {
+      return response.data;
+    } else {
+      throw new Error('Gagal menghapus staff: Respons tidak valid.');
+    }
+  } catch (error) {
+    throw error.response?.data || error.message || error; 
   }
 };
 
